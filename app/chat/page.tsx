@@ -473,18 +473,29 @@ export default function ChatPage() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      // Create MediaRecorder with WAV format if supported, otherwise WebM
-      const mimeType = 'audio/wav';
-      const options = { mimeType };
-
-      // Fallback to webm if wav not supported
+      // Create MediaRecorder with best supported format
       let mediaRecorder: MediaRecorder;
-      try {
-        mediaRecorder = new MediaRecorder(stream, options);
-      } catch {
-        console.log('WAV not supported, using WebM');
+      const mimeTypes = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/mp4',
+        'audio/wav'
+      ];
+
+      let selectedMimeType = '';
+      for (const mimeType of mimeTypes) {
+        if (MediaRecorder.isTypeSupported(mimeType)) {
+          selectedMimeType = mimeType;
+          break;
+        }
+      }
+
+      if (selectedMimeType) {
+        mediaRecorder = new MediaRecorder(stream, { mimeType: selectedMimeType });
+      } else {
         mediaRecorder = new MediaRecorder(stream);
       }
+      console.log('Using MIME type:', mediaRecorder.mimeType);
 
       mediaRecorderRef.current = mediaRecorder;
 
@@ -497,8 +508,9 @@ export default function ChatPage() {
       mediaRecorder.onstop = async () => {
         console.log('Recording stopped, processing audio...');
 
-        // Create audio blob
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
+        // Create audio blob with correct MIME type
+        const mimeType = mediaRecorder.mimeType || 'audio/webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
 
         // Send to backend
         try {
@@ -508,7 +520,9 @@ export default function ChatPage() {
           }
 
           const formData = new FormData();
-          formData.append('file', audioBlob, 'audio.wav');
+          // Determine file extension based on MIME type
+          const ext = mimeType.includes('webm') ? 'webm' : mimeType.includes('mp4') ? 'm4a' : 'wav';
+          formData.append('file', audioBlob, `audio.${ext}`);
 
           const token = localStorage.getItem('token');
           const endpoint = mode === 'voice'
