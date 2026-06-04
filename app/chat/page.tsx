@@ -281,37 +281,18 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Auto-start recording when voice mode becomes idle
+  // Auto-start recording when voice mode becomes idle (but NOT while AI is speaking)
   useEffect(() => {
-    if (recordingMode === 'voice' && voiceChatState === 'idle' && !isRecording) {
+    if (recordingMode === 'voice' && voiceChatState === 'idle' && !isRecording && !isAISpeaking) {
       const timer = setTimeout(() => {
         startRecording('voice');
-      }, 500);
+      }, 800);
       return () => clearTimeout(timer);
     }
-  }, [recordingMode, voiceChatState, isRecording]);
+  }, [recordingMode, voiceChatState, isRecording, isAISpeaking]);
 
-  // Auto-interrupt when user speaks during AI speaking
-  useEffect(() => {
-    if (!isAISpeaking) {
-      setUserSpokeDuringAI(false);
-      prevTranscriptionLengthRef.current = 0;
-      return;
-    }
-
-    // Check if user is speaking (transcription is growing with meaningful content)
-    const currentLength = liveTranscription.trim().length;
-    if (currentLength > prevTranscriptionLengthRef.current && currentLength > 3) {
-      // User is speaking with actual content, interrupt AI
-      if (!userSpokeDuringAI) {
-        setUserSpokeDuringAI(true);
-        interruptAI();
-        setTimeout(() => startRecording('voice'), 300);
-      }
-    }
-
-    prevTranscriptionLengthRef.current = currentLength;
-  }, [liveTranscription, isAISpeaking]);
+  // Add interrupt button when AI is speaking
+  // (Removed auto-interrupt due to false positives)
 
   // Waveform visualization effect
   useEffect(() => {
@@ -745,12 +726,23 @@ export default function ChatPage() {
           )}
 
           {/* Status Text */}
-          <h2 className="text-white text-2xl font-bold mt-10 mb-4">
+          <h2 className="text-white text-2xl font-bold mt-10 mb-8">
             {voiceChatState === 'recording' && 'Listening...'}
             {voiceChatState === 'listening' && 'Processing...'}
             {voiceChatState === 'speaking' && 'JARVIS is speaking'}
             {voiceChatState === 'idle' && 'Ready to chat'}
           </h2>
+
+          {/* Interrupt button - only show when AI is speaking */}
+          {isAISpeaking && (
+            <button
+              onClick={interruptAI}
+              className="voice-control-btn interrupt"
+              style={{ padding: '12px 24px', fontSize: '16px' }}
+            >
+              🛑 Interrupt
+            </button>
+          )}
 
 
         </div>
