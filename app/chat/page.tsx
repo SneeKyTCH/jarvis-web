@@ -20,7 +20,7 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [detectedLanguage, setDetectedLanguage] = useState<string>('');
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('ro-RO');
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
   const router = useRouter();
@@ -152,18 +152,14 @@ export default function ChatPage() {
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
-      // Try to detect language - start with browser language, fallback to English
-      recognition.lang = navigator.language || 'en-US';
+      recognition.lang = selectedLanguage;
 
       let finalTranscript = '';
-      let detectedLang = navigator.language || 'en-US';
 
       recognition.onstart = () => {
-        console.log('Speech recognition started');
-        console.log('Detecting language:', recognition.lang);
+        console.log('Speech recognition started in:', selectedLanguage);
         setIsRecording(true);
         setInput('');
-        setDetectedLanguage('');
         finalTranscript = '';
       };
 
@@ -174,18 +170,10 @@ export default function ChatPage() {
 
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript;
-          const confidence = event.results[i][0].confidence;
-          console.log(`Result ${i}: "${transcript}" (confidence: ${confidence.toFixed(2)}, final: ${event.results[i].isFinal})`);
+          console.log(`Result ${i}: "${transcript}" (final: ${event.results[i].isFinal})`);
 
           if (event.results[i].isFinal) {
             finalTranscript += transcript + ' ';
-            // Try to detect language from final result
-            if (detectedLang === 'en-US' && transcript.length > 3) {
-              // If it looks like Romanian, update detection
-              if (/ă|ș|ț|î|â/.test(transcript)) {
-                detectedLang = 'ro-RO';
-              }
-            }
           } else {
             interimTranscript += transcript;
           }
@@ -195,10 +183,6 @@ export default function ChatPage() {
         const fullText = finalTranscript + interimTranscript;
         console.log('Setting input to:', fullText);
         setInput(fullText);
-
-        // Show detected language
-        const langName = detectedLang === 'ro-RO' ? 'Romanian 🇷🇴' : 'English 🇺🇸';
-        setDetectedLanguage(langName);
       };
 
       recognition.onerror = (event: any) => {
@@ -233,9 +217,19 @@ export default function ChatPage() {
       <div className="bg-slate-800 border-b border-slate-700 px-6 py-4 flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-white">JARVIS</h1>
-          <p className="text-slate-400 text-sm">
-            Chat with AI {isSpeaking && '🔊 Speaking...'} {isRecording && detectedLanguage && `(${detectedLanguage})`}
-          </p>
+          <p className="text-slate-400 text-sm">Chat with AI {isSpeaking && '🔊 Speaking...'}</p>
+          <select
+            value={selectedLanguage}
+            onChange={(e) => setSelectedLanguage(e.target.value)}
+            disabled={isRecording}
+            className="mt-2 px-3 py-1 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
+          >
+            <option value="ro-RO">🇷🇴 Română</option>
+            <option value="en-US">🇺🇸 English</option>
+            <option value="es-ES">🇪🇸 Español</option>
+            <option value="fr-FR">🇫🇷 Français</option>
+            <option value="de-DE">🇩🇪 Deutsch</option>
+          </select>
           <button
             onClick={() => router.push('/agent')}
             className="mt-2 text-xs bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded transition"
