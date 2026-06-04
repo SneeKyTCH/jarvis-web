@@ -18,10 +18,13 @@ export default function ChatPage() {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -69,6 +72,65 @@ export default function ChatPage() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     router.push('/');
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        audioChunksRef.current.push(event.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
+        stream.getTracks().forEach(track => track.stop());
+        await transcribeAudio(audioBlob);
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (error) {
+      console.error('Microphone access denied:', error);
+      alert('Please allow microphone access');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const transcribeAudio = async (audioBlob: Blob) => {
+    setIsLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', audioBlob, 'audio.wav');
+
+      const response = await fetch('https://jarvis-api-kx4n.onrender.com/api/v1/voice/transcribe', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: formData
+      });
+
+      if (!response.ok) throw new Error('Transcription failed');
+
+      const data = await response.json();
+      const transcribedText = data.transcription || data.text;
+      setInput(transcribedText);
+    } catch (error) {
+      console.error('Transcription error:', error);
+      alert('Failed to transcribe audio');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -129,10 +191,32 @@ export default function ChatPage() {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask me anything..."
-            disabled={isLoading}
+            placeholder="Ask me anything... or use voice"
+            disabled={isLoading || isRecording}
             className="flex-1 px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
           />
+
+          {isRecording ? (
+            <button
+              type="button"
+              onClick={stopRecording}
+              className="px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition flex items-center gap-2"
+            >
+              <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+              Stop
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={startRecording}
+              disabled={isLoading}
+              className="px-4 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg disabled:opacity-50 transition"
+              title="Click to record voice message"
+            >
+              🎤
+            </button>
+          )}
+
           <button
             type="submit"
             disabled={isLoading || !input.trim()}
