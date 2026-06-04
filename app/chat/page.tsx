@@ -108,42 +108,64 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const speakText = (text: string) => {
+  const speakText = async (text: string) => {
     try {
       setIsSpeaking(true);
+      const token = localStorage.getItem('token');
 
-      // Use browser's native speech synthesis
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1;
-      utterance.pitch = 1;
-      utterance.volume = 1;
-
-      // Set language based on detected language
+      // Map detected language to Azure voice
+      let voiceId = 'en-US-AriaNeural'; // Default
       if (detectedLanguage.includes('Română')) {
-        utterance.lang = 'ro-RO';
+        voiceId = 'ro-RO-AlinaNeural'; // Premium Romanian voice
       } else if (detectedLanguage.includes('English')) {
-        utterance.lang = 'en-US';
+        voiceId = 'en-US-AriaNeural';
       } else if (detectedLanguage.includes('Español')) {
-        utterance.lang = 'es-ES';
+        voiceId = 'es-ES-ElviraNeural';
       } else if (detectedLanguage.includes('Français')) {
-        utterance.lang = 'fr-FR';
-      } else {
-        utterance.lang = 'en-US';
+        voiceId = 'fr-FR-DeniseNeural';
       }
 
-      utterance.onend = () => {
+      // Call backend to get Azure TTS audio
+      const response = await fetch('https://jarvis-api-kx4n.onrender.com/api/v1/voice/speak', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          text: text,
+          language: detectedLanguage.includes('Română') ? 'ro' : 'en',
+          voice_id: voiceId
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to synthesize speech');
+      }
+
+      // Get audio blob and play it
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+
+      audio.onended = () => {
         setIsSpeaking(false);
+        URL.revokeObjectURL(audioUrl);
         console.log('Speech synthesis ended');
       };
 
-      utterance.onerror = (event: any) => {
+      audio.onerror = () => {
         setIsSpeaking(false);
-        console.error('Speech synthesis error:', event.error);
+        URL.revokeObjectURL(audioUrl);
       };
 
-      utteranceRef.current = utterance;
-      window.speechSynthesis.speak(utterance);
+      audio.play().catch(err => {
+        console.error('Audio play error:', err);
+        setIsSpeaking(false);
+        URL.revokeObjectURL(audioUrl);
+      });
 
+      utteranceRef.current = audio as any;
     } catch (error) {
       console.error('Speak error:', error);
       setIsSpeaking(false);
