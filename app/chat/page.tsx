@@ -108,51 +108,42 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const speakText = async (text: string) => {
+  const speakText = (text: string) => {
     try {
       setIsSpeaking(true);
-      const token = localStorage.getItem('token');
 
-      // Call backend to get audio from Eleven Labs
-      const response = await fetch('https://jarvis-api-kx4n.onrender.com/api/v1/voice/speak', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          text: text,
-          language: 'en',
-          voice_id: 'George'
-        })
-      });
+      // Use browser's native speech synthesis
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 1;
+      utterance.pitch = 1;
+      utterance.volume = 1;
 
-      if (!response.ok) {
-        throw new Error('Failed to synthesize speech');
+      // Set language based on detected language
+      if (detectedLanguage.includes('Română')) {
+        utterance.lang = 'ro-RO';
+      } else if (detectedLanguage.includes('English')) {
+        utterance.lang = 'en-US';
+      } else if (detectedLanguage.includes('Español')) {
+        utterance.lang = 'es-ES';
+      } else if (detectedLanguage.includes('Français')) {
+        utterance.lang = 'fr-FR';
+      } else {
+        utterance.lang = 'en-US';
       }
 
-      // Get audio blob and play it
-      const audioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
-
-      audio.onended = () => {
+      utterance.onend = () => {
         setIsSpeaking(false);
-        URL.revokeObjectURL(audioUrl);
+        console.log('Speech synthesis ended');
       };
 
-      audio.onerror = () => {
+      utterance.onerror = (event: any) => {
         setIsSpeaking(false);
-        URL.revokeObjectURL(audioUrl);
+        console.error('Speech synthesis error:', event.error);
       };
 
-      audio.play().catch(err => {
-        console.error('Audio play error:', err);
-        setIsSpeaking(false);
-        URL.revokeObjectURL(audioUrl);
-      });
+      utteranceRef.current = utterance;
+      window.speechSynthesis.speak(utterance);
 
-      utteranceRef.current = audio as any;
     } catch (error) {
       console.error('Speak error:', error);
       setIsSpeaking(false);
