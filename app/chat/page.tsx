@@ -259,13 +259,13 @@ export default function ChatPage() {
       mediaRecorder.onstop = async () => {
         console.log('Recording stopped, sending to Azure...');
 
-        // Create audio blob
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        // Create audio blob as WAV (Azure Speech SDK requires valid audio header)
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
 
         // Send to backend for transcription
         try {
           const formData = new FormData();
-          formData.append('file', audioBlob, 'audio.webm');
+          formData.append('file', audioBlob, 'audio.wav');
 
           const token = localStorage.getItem('token');
           const response = await fetch('https://jarvis-api-kx4n.onrender.com/api/v1/voice/detect-language-and-transcribe', {
