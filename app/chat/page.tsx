@@ -235,8 +235,19 @@ export default function ChatPage() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      // Create MediaRecorder
-      const mediaRecorder = new MediaRecorder(stream);
+      // Create MediaRecorder with WAV format if supported, otherwise WebM
+      const mimeType = 'audio/wav';
+      const options = { mimeType };
+
+      // Fallback to webm if wav not supported
+      let mediaRecorder: MediaRecorder;
+      try {
+        mediaRecorder = new MediaRecorder(stream, options);
+      } catch {
+        console.log('WAV not supported, using WebM');
+        mediaRecorder = new MediaRecorder(stream);
+      }
+
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
