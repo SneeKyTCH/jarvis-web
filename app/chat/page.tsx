@@ -296,14 +296,26 @@ export default function ChatPage() {
               detectedLang = 'ron';
               console.log('Detected Romanian by characters');
             } else {
-              // Use franc for other languages
+              // Try franc for language detection
               try {
-                detectedLang = franc(fullText);
-                console.log('Detected language via franc:', detectedLang);
-              } catch {
+                const francResult = franc(fullText);
+                console.log('Franc detected:', francResult);
+
+                // Map franc results
+                if (francResult === 'ron' || francResult === 'sco' || francResult === 'glg') {
+                  detectedLang = 'ron'; // Trust franc for Romanian
+                } else if (francResult && francResult !== 'und') {
+                  detectedLang = francResult; // Use franc result if valid
+                } else {
+                  detectedLang = 'eng'; // Default to English
+                }
+              } catch (e) {
                 console.log('Franc detection failed, defaulting to English');
+                detectedLang = 'eng';
               }
             }
+
+            console.log('Final detected language:', detectedLang, 'from text:', fullText.substring(0, 50));
 
             // Map language codes to names with flags AND speech recognition language codes
             const langMap: { [key: string]: { name: string; speechLang: string } } = {
