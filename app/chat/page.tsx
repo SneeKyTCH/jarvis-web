@@ -556,7 +556,7 @@ export default function ChatPage() {
                 startRecording('voice');
               }
             }}
-            disabled={isLoading || (voiceChatState !== 'idle' && voiceChatState !== 'recording')}
+            disabled={isLoading || isRecording}
             className={`w-12 h-12 flex items-center justify-center rounded-full text-white text-xl transition shadow-lg hover:shadow-xl ${
               voiceChatState === 'idle'
                 ? 'bg-blue-600 hover:bg-blue-700'
