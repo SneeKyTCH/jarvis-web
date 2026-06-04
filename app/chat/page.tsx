@@ -217,6 +217,7 @@ export default function ChatPage() {
       recognition.lang = speechLang; // Use dynamic language (default: ro-RO for Romanian)
 
       let finalTranscript = '';
+      let hasFinalResult = false;
 
       recognition.onstart = () => {
         console.log('Speech recognition started - auto-detecting language');
@@ -224,6 +225,7 @@ export default function ChatPage() {
         setInput('');
         setDetectedLanguage('');
         finalTranscript = '';
+        hasFinalResult = false;
       };
 
       recognition.onresult = (event: any) => {
@@ -237,6 +239,7 @@ export default function ChatPage() {
 
           if (event.results[i].isFinal) {
             finalTranscript += transcript + ' ';
+            hasFinalResult = true;
           } else {
             interimTranscript += transcript;
           }
@@ -247,24 +250,26 @@ export default function ChatPage() {
         console.log('Setting input to:', fullText);
         setInput(fullText);
 
-        // Reset silence timer on each result
-        lastResultTimeRef.current = Date.now();
-        if (silenceTimerRef.current) {
-          clearTimeout(silenceTimerRef.current);
-        }
-
-        // Auto-stop after 2.5 seconds of silence
-        silenceTimerRef.current = setTimeout(() => {
-          console.log('Silence detected - stopping recording');
-          if (mediaRecorderRef.current) {
-            try {
-              (mediaRecorderRef.current as any).abort();
-            } catch (error) {
-              console.error('Error stopping recognition:', error);
-            }
-            setIsRecording(false);
+        // Only start silence timer after we have a final result
+        if (hasFinalResult) {
+          lastResultTimeRef.current = Date.now();
+          if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
           }
-        }, 2500);
+
+          // Auto-stop after 4 seconds of silence (only after final result)
+          silenceTimerRef.current = setTimeout(() => {
+            console.log('Silence detected - stopping recording');
+            if (mediaRecorderRef.current) {
+              try {
+                (mediaRecorderRef.current as any).abort();
+              } catch (error) {
+                console.error('Error stopping recognition:', error);
+              }
+              setIsRecording(false);
+            }
+          }, 4000);
+        }
 
         // Auto-detect language using hybrid approach
         if (fullText.trim().length > 2) {
