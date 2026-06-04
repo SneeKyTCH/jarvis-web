@@ -19,6 +19,7 @@ export default function ChatPage() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
   const router = useRouter();
@@ -111,7 +112,7 @@ export default function ChatPage() {
   };
 
   const transcribeAudio = async (audioBlob: Blob) => {
-    setIsLoading(true);
+    setIsTranscribing(true);
     try {
       const formData = new FormData();
       formData.append('file', audioBlob, 'audio.webm');
@@ -139,9 +140,9 @@ export default function ChatPage() {
       }
     } catch (error) {
       console.error('Transcription error:', error);
-      alert('Failed to transcribe audio: ' + error);
+      alert('Failed to transcribe audio');
     } finally {
-      setIsLoading(false);
+      setIsTranscribing(false);
     }
   };
 
@@ -198,13 +199,20 @@ export default function ChatPage() {
 
       {/* Input Area */}
       <div className="bg-slate-800 border-t border-slate-700 px-6 py-4">
+        {isTranscribing && (
+          <div className="mb-2 text-sm text-yellow-400 flex items-center gap-2">
+            <span className="inline-block w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>
+            Transcribing...
+          </div>
+        )}
+
         <form onSubmit={handleSend} className="flex gap-3">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask me anything... or use voice"
-            disabled={isLoading || isRecording}
+            placeholder="Ask me anything... or use voice 🎤"
+            disabled={isLoading || isRecording || isTranscribing}
             className="flex-1 px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
           />
 
@@ -221,7 +229,7 @@ export default function ChatPage() {
             <button
               type="button"
               onClick={startRecording}
-              disabled={isLoading}
+              disabled={isLoading || isTranscribing}
               className="px-4 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg disabled:opacity-50 transition"
               title="Click to record voice message"
             >
@@ -231,7 +239,7 @@ export default function ChatPage() {
 
           <button
             type="submit"
-            disabled={isLoading || !input.trim()}
+            disabled={isLoading || !input.trim() || isTranscribing}
             className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
             Send
