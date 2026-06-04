@@ -744,47 +744,6 @@ export default function ChatPage() {
     <div className="h-screen flex flex-col bg-slate-900">
       <style>{styles}</style>
 
-      {/* Recording Overlay - Only for Voice Chat Mode */}
-      {isRecording && recordingMode === 'voice' && (
-        <div className="recording-overlay fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50">
-          {/* Close Button */}
-          <button
-            onClick={stopRecording}
-            className="absolute top-6 right-6 text-white text-3xl hover:opacity-70 transition z-60"
-          >
-            ✕
-          </button>
-
-          <div className="flex flex-col items-center gap-6">
-            {/* Large Pulsing Circle */}
-            <div className="relative w-40 h-40">
-              <div className="recording-circle absolute inset-0 rounded-full bg-blue-500 opacity-80"></div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <button
-                  onClick={stopRecording}
-                  className="w-24 h-24 rounded-full bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-3xl transition shadow-2xl hover:shadow-3xl"
-                  title="Click to stop recording"
-                >
-                  🎤
-                </button>
-              </div>
-            </div>
-            {/* Recording Status */}
-            <div className="text-center">
-              <h2 className="text-white text-2xl font-bold mb-2">
-                Speaking to chat...
-              </h2>
-              <p className="text-slate-300">
-                {detectedLanguage ? `Speaking: ${detectedLanguage}` : 'Detecting language...'}
-              </p>
-              <p className="text-slate-400 text-sm mt-4">
-                Speak to chat (auto-sends)
-              </p>
-              <p className="text-slate-400 text-sm">Click circle or ✕ to stop</p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Header */}
       <div className="bg-slate-800 border-b border-slate-700 px-6 py-4 flex justify-between items-center">
