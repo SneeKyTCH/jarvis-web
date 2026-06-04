@@ -419,7 +419,7 @@ export default function ChatPage() {
             {/* Recording Status */}
             <div className="text-center">
               <h2 className="text-white text-2xl font-bold mb-2">
-                {recordingMode === 'dictate' ? 'Dictating...' : 'Listening...'}
+                Speaking to chat...
               </h2>
               <p className="text-slate-300">
                 {detectedLanguage ? `Speaking: ${detectedLanguage}` : 'Detecting language...'}
