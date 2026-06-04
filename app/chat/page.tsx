@@ -570,7 +570,10 @@ export default function ChatPage() {
           }
         } finally {
           setIsRecording(false);
-          setRecordingMode(null);
+          // Keep recordingMode as 'voice' - don't reset to null until user closes
+          if (mode === 'dictate') {
+            setRecordingMode(null);
+          }
 
           // Stop all tracks
           streamRef.current?.getTracks().forEach(track => track.stop());
@@ -634,7 +637,7 @@ export default function ChatPage() {
   };
 
 
-  // Full-screen voice chat UI when in voice mode
+  // Full-screen voice chat UI when in voice mode (stays open until user closes)
   if (recordingMode === 'voice') {
     return (
       <div className="voice-mode-container">
