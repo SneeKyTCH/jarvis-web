@@ -78,6 +78,7 @@ export default function ChatPage() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [recordingMode, setRecordingMode] = useState<'dictate' | 'voice' | null>(null); // 'dictate' or 'voice'
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [detectedLanguage, setDetectedLanguage] = useState<string>('');
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -216,7 +217,7 @@ export default function ChatPage() {
     router.push('/');
   };
 
-  const startRecording = async () => {
+  const startRecording = async (mode: 'dictate' | 'voice') => {
     try {
       const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
       if (!SpeechRecognition) {
@@ -233,8 +234,9 @@ export default function ChatPage() {
       let hasFinalResult = false;
 
       recognition.onstart = () => {
-        console.log('Speech recognition started - auto-detecting language');
+        console.log(`Speech recognition started - Mode: ${mode}`);
         setIsRecording(true);
+        setRecordingMode(mode);
         setInput('');
         setDetectedLanguage('');
         finalTranscript = '';
@@ -342,18 +344,22 @@ export default function ChatPage() {
           clearTimeout(silenceTimerRef.current);
         }
 
-        // Auto-submit message if there's text
-        setTimeout(() => {
-          setInput((currentInput) => {
-            const textToSend = currentInput.trim();
-            if (textToSend) {
-              console.log('Auto-submitting:', textToSend);
-              // Trigger the send
-              handleSend({ preventDefault: () => {} } as any);
-            }
-            return currentInput;
-          });
-        }, 300);
+        // Auto-submit only in voice mode, not in dictate mode
+        if (mode === 'voice') {
+          setTimeout(() => {
+            setInput((currentInput) => {
+              const textToSend = currentInput.trim();
+              if (textToSend) {
+                console.log('Auto-submitting:', textToSend);
+                // Trigger the send
+                handleSend({ preventDefault: () => {} } as any);
+              }
+              return currentInput;
+            });
+          }, 300);
+        }
+
+        setRecordingMode(null);
       };
 
       mediaRecorderRef.current = recognition;
@@ -412,11 +418,18 @@ export default function ChatPage() {
             </div>
             {/* Recording Status */}
             <div className="text-center">
-              <h2 className="text-white text-2xl font-bold mb-2">Listening...</h2>
+              <h2 className="text-white text-2xl font-bold mb-2">
+                {recordingMode === 'dictate' ? 'Dictating...' : 'Listening...'}
+              </h2>
               <p className="text-slate-300">
                 {detectedLanguage ? `Speaking: ${detectedLanguage}` : 'Detecting language...'}
               </p>
-              <p className="text-slate-400 text-sm mt-4">Click circle or ✕ to stop</p>
+              <p className="text-slate-400 text-sm mt-4">
+                {recordingMode === 'dictate'
+                  ? 'Speak your message (will show as text)'
+                  : 'Speak to chat (auto-sends)'}
+              </p>
+              <p className="text-slate-400 text-sm">Click circle or ✕ to stop</p>
             </div>
           </div>
         </div>
@@ -502,14 +515,26 @@ export default function ChatPage() {
             className="flex-1 px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
           />
 
+          {/* Dictate Button */}
           <button
             type="button"
-            onClick={startRecording}
+            onClick={() => startRecording('dictate')}
             disabled={isLoading || isRecording}
-            className="w-12 h-12 flex items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xl disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg hover:shadow-xl"
-            title="Click to record voice message"
+            className="w-12 h-12 flex items-center justify-center rounded-full bg-slate-600 hover:bg-slate-700 text-white text-xl disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg hover:shadow-xl"
+            title="Dictate - speak to add text"
           >
             🎤
+          </button>
+
+          {/* Voice Chat Button */}
+          <button
+            type="button"
+            onClick={() => startRecording('voice')}
+            disabled={isLoading || isRecording}
+            className="w-12 h-12 flex items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xl disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg hover:shadow-xl"
+            title="Voice Chat - speak to chat"
+          >
+            📊
           </button>
 
           <button
