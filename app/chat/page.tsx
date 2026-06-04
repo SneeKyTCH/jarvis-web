@@ -250,6 +250,7 @@ export default function ChatPage() {
   const [waveformBars, setWaveformBars] = useState<number[]>(Array(20).fill(0));
   const [isAISpeaking, setIsAISpeaking] = useState(false);
   const [userSpokeDuringAI, setUserSpokeDuringAI] = useState(false);
+  const [userSpeakingFor5Sec, setUserSpeakingFor5Sec] = useState(false);
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -482,17 +483,17 @@ export default function ChatPage() {
             });
           }
 
-          // After 5 seconds of speaking, show "JARVIS is speaking"
+          // After 5 seconds of speaking, show "JARVIS is speaking" (visual feedback only)
           if (speechStartTimeRef.current && !speakingTimerRef.current) {
             const elapsedTime = Date.now() - speechStartTimeRef.current;
             if (elapsedTime >= 5000) {
-              setVoiceChatState('listening');
-              console.log('5 seconds elapsed, showing JARVIS is speaking');
+              setUserSpeakingFor5Sec(true);
+              console.log('5 seconds elapsed, visual feedback shown');
             } else {
               // Set timer for remaining time
               const remainingTime = 5000 - elapsedTime;
               speakingTimerRef.current = setTimeout(() => {
-                setVoiceChatState('listening');
+                setUserSpeakingFor5Sec(true);
                 speakingTimerRef.current = null;
               }, remainingTime);
             }
@@ -553,6 +554,7 @@ export default function ChatPage() {
           speakingTimerRef.current = null;
         }
         speechStartTimeRef.current = null;
+        setUserSpeakingFor5Sec(false);
 
         // Reset transcription for next recording
         setLiveTranscription('');
@@ -758,9 +760,10 @@ export default function ChatPage() {
 
           {/* Status Text */}
           <h2 className="text-white text-2xl font-bold mt-10 mb-8">
-            {voiceChatState === 'recording' && liveTranscription && 'You\'re speaking...'}
-            {voiceChatState === 'recording' && !liveTranscription && 'Listening...'}
-            {voiceChatState === 'listening' && 'JARVIS is speaking'}
+            {voiceChatState === 'recording' && userSpeakingFor5Sec && 'JARVIS is speaking'}
+            {voiceChatState === 'recording' && !userSpeakingFor5Sec && liveTranscription && 'You\'re speaking...'}
+            {voiceChatState === 'recording' && !userSpeakingFor5Sec && !liveTranscription && 'Listening...'}
+            {voiceChatState === 'listening' && 'Processing...'}
             {voiceChatState === 'speaking' && 'JARVIS is speaking'}
             {voiceChatState === 'idle' && 'Ready to chat'}
           </h2>
