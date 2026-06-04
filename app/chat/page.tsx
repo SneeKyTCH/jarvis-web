@@ -322,65 +322,6 @@ export default function ChatPage() {
 
       {/* Input Area */}
       <div className="bg-slate-800 border-t border-slate-700 px-6 py-4">
-        {/* Language Selector */}
-        <div className="mb-3 flex gap-2 flex-wrap">
-          <span className="text-slate-400 text-sm self-center">Language:</span>
-          <button
-            type="button"
-            onClick={() => setSpeechLang('ro-RO')}
-            className={`px-3 py-1 rounded text-sm font-semibold transition ${
-              speechLang === 'ro-RO'
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-            }`}
-          >
-            🇷🇴 Română
-          </button>
-          <button
-            type="button"
-            onClick={() => setSpeechLang('en-US')}
-            className={`px-3 py-1 rounded text-sm font-semibold transition ${
-              speechLang === 'en-US'
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-            }`}
-          >
-            🇺🇸 English
-          </button>
-          <button
-            type="button"
-            onClick={() => setSpeechLang('es-ES')}
-            className={`px-3 py-1 rounded text-sm font-semibold transition ${
-              speechLang === 'es-ES'
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-            }`}
-          >
-            🇪🇸 Español
-          </button>
-          <button
-            type="button"
-            onClick={() => setSpeechLang('fr-FR')}
-            className={`px-3 py-1 rounded text-sm font-semibold transition ${
-              speechLang === 'fr-FR'
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-            }`}
-          >
-            🇫🇷 Français
-          </button>
-          <button
-            type="button"
-            onClick={() => setSpeechLang('de-DE')}
-            className={`px-3 py-1 rounded text-sm font-semibold transition ${
-              speechLang === 'de-DE'
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-            }`}
-          >
-            🇩🇪 Deutsch
-          </button>
-        </div>
         <form onSubmit={handleSend} className="flex gap-3">
           <input
             type="text"
