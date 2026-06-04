@@ -186,11 +186,24 @@ export default function ChatPage() {
         console.log('Setting input to:', fullText);
         setInput(fullText);
 
-        // Auto-detect language using franc
-        if (fullText.trim().length > 5) {
+        // Auto-detect language using hybrid approach
+        if (fullText.trim().length > 2) {
           try {
-            const detectedLang = franc(fullText);
-            console.log('Detected language:', detectedLang);
+            let detectedLang = 'eng';
+
+            // Check for Romanian characters first
+            if (/[ăâîșț]/i.test(fullText)) {
+              detectedLang = 'ron';
+              console.log('Detected Romanian by characters');
+            } else {
+              // Use franc for other languages
+              try {
+                detectedLang = franc(fullText);
+                console.log('Detected language via franc:', detectedLang);
+              } catch {
+                console.log('Franc detection failed, defaulting to English');
+              }
+            }
 
             // Map language codes to names with flags
             const langMap: { [key: string]: string } = {
