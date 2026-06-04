@@ -249,8 +249,6 @@ export default function ChatPage() {
   const [liveTranscription, setLiveTranscription] = useState<string>('');
   const [waveformBars, setWaveformBars] = useState<number[]>(Array(20).fill(0));
   const [isAISpeaking, setIsAISpeaking] = useState(false);
-  const [audioContextRef, setAudioContextRef] = useState<AudioContext | null>(null);
-  const [analyserRef, setAnalyserRef] = useState<AnalyserNode | null>(null);
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -291,8 +289,8 @@ export default function ChatPage() {
     source.connect(analyser);
     analyser.fftSize = 256;
 
-    setAudioContextRef(audioContext);
-    setAnalyserRef(analyser);
+    audioContextRef.current = audioContext;
+    analyserRef.current = analyser;
 
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
