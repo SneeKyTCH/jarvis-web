@@ -76,7 +76,7 @@ const styles = `
 
   .voice-chat-speaking {
     animation: voice-chat-pulse 1s infinite;
-  }`
+  }
 
   @keyframes fade-in {
     from { opacity: 0; transform: scale(0.8); }
