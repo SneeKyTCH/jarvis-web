@@ -299,9 +299,10 @@ export default function ChatPage() {
       return;
     }
 
-    // Check if user is speaking (transcription is growing)
-    if (liveTranscription.length > prevTranscriptionLengthRef.current) {
-      // User is speaking, interrupt AI
+    // Check if user is speaking (transcription is growing with meaningful content)
+    const currentLength = liveTranscription.trim().length;
+    if (currentLength > prevTranscriptionLengthRef.current && currentLength > 3) {
+      // User is speaking with actual content, interrupt AI
       if (!userSpokeDuringAI) {
         setUserSpokeDuringAI(true);
         interruptAI();
@@ -309,7 +310,7 @@ export default function ChatPage() {
       }
     }
 
-    prevTranscriptionLengthRef.current = liveTranscription.length;
+    prevTranscriptionLengthRef.current = currentLength;
   }, [liveTranscription, isAISpeaking]);
 
   // Waveform visualization effect
@@ -540,6 +541,10 @@ export default function ChatPage() {
 
       mediaRecorder.onstop = async () => {
         console.log('Recording stopped, processing audio...');
+
+        // Reset transcription for next recording
+        setLiveTranscription('');
+        prevTranscriptionLengthRef.current = 0;
 
         // Create audio blob with correct MIME type
         const mimeType = mediaRecorder.mimeType || 'audio/webm';
