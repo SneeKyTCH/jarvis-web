@@ -391,8 +391,8 @@ export default function ChatPage() {
     <div className="h-screen flex flex-col bg-slate-900">
       <style>{styles}</style>
 
-      {/* Recording Overlay - Large Animated Circle */}
-      {isRecording && (
+      {/* Recording Overlay - Only for Voice Chat Mode */}
+      {isRecording && recordingMode === 'voice' && (
         <div className="recording-overlay fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50">
           {/* Close Button */}
           <button
