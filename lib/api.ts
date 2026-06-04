@@ -36,6 +36,18 @@ export const chatAPI = {
     });
     return res.data;
   },
+
+  listConversations: async (limit = 20, offset = 0) => {
+    const res = await api.get('/api/v1/chat/conversations', {
+      params: { limit, offset },
+    });
+    return res.data;
+  },
+
+  getConversation: async (conversationId: string) => {
+    const res = await api.get(`/api/v1/chat/conversations/${conversationId}`);
+    return res.data;
+  },
 };
 
 export default api;
