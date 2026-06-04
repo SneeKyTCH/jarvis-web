@@ -262,6 +262,8 @@ export default function ChatPage() {
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const silenceCountRef = useRef<number>(0);
+  const speechStartTimeRef = useRef<number | null>(null);
+  const speakingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -456,6 +458,12 @@ export default function ChatPage() {
         recognition.interimResults = true;
         recognition.lang = 'en-US';
 
+        recognition.onstart = () => {
+          // User started speaking
+          speechStartTimeRef.current = Date.now();
+          console.log('User started speaking');
+        };
+
         recognition.onresult = (event: any) => {
           let interimTranscript = '';
           for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -472,6 +480,22 @@ export default function ChatPage() {
               parts[parts.length - 1] = interimTranscript;
               return parts.join(' ');
             });
+          }
+
+          // After 5 seconds of speaking, show "JARVIS is speaking"
+          if (speechStartTimeRef.current && !speakingTimerRef.current) {
+            const elapsedTime = Date.now() - speechStartTimeRef.current;
+            if (elapsedTime >= 5000) {
+              setVoiceChatState('listening');
+              console.log('5 seconds elapsed, showing JARVIS is speaking');
+            } else {
+              // Set timer for remaining time
+              const remainingTime = 5000 - elapsedTime;
+              speakingTimerRef.current = setTimeout(() => {
+                setVoiceChatState('listening');
+                speakingTimerRef.current = null;
+              }, remainingTime);
+            }
           }
         };
 
@@ -522,6 +546,13 @@ export default function ChatPage() {
 
       mediaRecorder.onstop = async () => {
         console.log('Recording stopped, processing audio...');
+
+        // Clean up speaking timer
+        if (speakingTimerRef.current) {
+          clearTimeout(speakingTimerRef.current);
+          speakingTimerRef.current = null;
+        }
+        speechStartTimeRef.current = null;
 
         // Reset transcription for next recording
         setLiveTranscription('');
@@ -727,8 +758,9 @@ export default function ChatPage() {
 
           {/* Status Text */}
           <h2 className="text-white text-2xl font-bold mt-10 mb-8">
-            {voiceChatState === 'recording' && 'Listening...'}
-            {voiceChatState === 'listening' && 'Processing...'}
+            {voiceChatState === 'recording' && liveTranscription && 'You\'re speaking...'}
+            {voiceChatState === 'recording' && !liveTranscription && 'Listening...'}
+            {voiceChatState === 'listening' && 'JARVIS is speaking'}
             {voiceChatState === 'speaking' && 'JARVIS is speaking'}
             {voiceChatState === 'idle' && 'Ready to chat'}
           </h2>
