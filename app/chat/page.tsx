@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { chatAPI } from '@/lib/api';
+import { detect } from 'franc';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -20,7 +21,7 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState<string>('ro-RO');
+  const [detectedLanguage, setDetectedLanguage] = useState<string>('');
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
   const router = useRouter();
@@ -152,14 +153,15 @@ export default function ChatPage() {
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
-      recognition.lang = selectedLanguage;
+      recognition.lang = 'en-US'; // Start with English, will auto-detect
 
       let finalTranscript = '';
 
       recognition.onstart = () => {
-        console.log('Speech recognition started in:', selectedLanguage);
+        console.log('Speech recognition started - auto-detecting language');
         setIsRecording(true);
         setInput('');
+        setDetectedLanguage('');
         finalTranscript = '';
       };
 
@@ -183,6 +185,29 @@ export default function ChatPage() {
         const fullText = finalTranscript + interimTranscript;
         console.log('Setting input to:', fullText);
         setInput(fullText);
+
+        // Auto-detect language using franc
+        if (fullText.trim().length > 5) {
+          try {
+            const detectedLang = detect(fullText);
+            console.log('Detected language:', detectedLang);
+
+            // Map language codes to names with flags
+            const langMap: { [key: string]: string } = {
+              'ron': 'Română 🇷🇴',
+              'eng': 'English 🇺🇸',
+              'spa': 'Español 🇪🇸',
+              'fra': 'Français 🇫🇷',
+              'deu': 'Deutsch 🇩🇪',
+              'ita': 'Italiano 🇮🇹',
+              'por': 'Português 🇵🇹',
+            };
+
+            setDetectedLanguage(langMap[detectedLang] || detectedLang);
+          } catch (error) {
+            console.error('Language detection error:', error);
+          }
+        }
       };
 
       recognition.onerror = (event: any) => {
@@ -217,19 +242,9 @@ export default function ChatPage() {
       <div className="bg-slate-800 border-b border-slate-700 px-6 py-4 flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-white">JARVIS</h1>
-          <p className="text-slate-400 text-sm">Chat with AI {isSpeaking && '🔊 Speaking...'}</p>
-          <select
-            value={selectedLanguage}
-            onChange={(e) => setSelectedLanguage(e.target.value)}
-            disabled={isRecording}
-            className="mt-2 px-3 py-1 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
-          >
-            <option value="ro-RO">🇷🇴 Română</option>
-            <option value="en-US">🇺🇸 English</option>
-            <option value="es-ES">🇪🇸 Español</option>
-            <option value="fr-FR">🇫🇷 Français</option>
-            <option value="de-DE">🇩🇪 Deutsch</option>
-          </select>
+          <p className="text-slate-400 text-sm">
+            Chat with AI {isSpeaking && '🔊 Speaking...'} {isRecording && detectedLanguage && `(${detectedLanguage})`}
+          </p>
           <button
             onClick={() => router.push('/agent')}
             className="mt-2 text-xs bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded transition"
