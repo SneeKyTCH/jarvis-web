@@ -5,6 +5,50 @@ import { useRouter } from 'next/navigation';
 import { chatAPI } from '@/lib/api';
 import { franc } from 'franc';
 
+// Animated waveform and circle styles
+const styles = `
+  @keyframes pulse-ring {
+    0% {
+      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+    }
+    70% {
+      box-shadow: 0 0 0 20px rgba(59, 130, 246, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    }
+  }
+
+  @keyframes wave-bar {
+    0%, 100% { height: 8px; }
+    50% { height: 24px; }
+  }
+
+  .pulse-circle {
+    animation: pulse-ring 1.5s infinite;
+  }
+
+  .wave-bar {
+    animation: wave-bar 0.6s ease-in-out infinite;
+  }
+
+  .wave-bar:nth-child(2) {
+    animation-delay: 0.1s;
+  }
+
+  .wave-bar:nth-child(3) {
+    animation-delay: 0.2s;
+  }
+
+  .wave-bar:nth-child(4) {
+    animation-delay: 0.1s;
+  }
+
+  .wave-bar:nth-child(5) {
+    animation-delay: 0s;
+  }
+`;
+
 interface Message {
   role: 'user' | 'assistant';
   content: string;
@@ -255,6 +299,7 @@ export default function ChatPage() {
 
   return (
     <div className="h-screen flex flex-col bg-slate-900">
+      <style>{styles}</style>
       {/* Header */}
       <div className="bg-slate-800 border-b border-slate-700 px-6 py-4 flex justify-between items-center">
         <div>
@@ -308,12 +353,15 @@ export default function ChatPage() {
         ))}
         {isLoading && (
           <div className="flex justify-start">
-            <div className="bg-slate-800 border border-slate-700 px-4 py-3 rounded-lg">
-              <div className="flex gap-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+            <div className="flex items-center gap-3 px-4 py-3">
+              <div className="flex gap-1 items-end">
+                <div className="wave-bar w-1 bg-blue-500 rounded-full"></div>
+                <div className="wave-bar w-1 bg-blue-500 rounded-full"></div>
+                <div className="wave-bar w-1 bg-blue-500 rounded-full"></div>
+                <div className="wave-bar w-1 bg-blue-500 rounded-full"></div>
+                <div className="wave-bar w-1 bg-blue-500 rounded-full"></div>
               </div>
+              <span className="text-slate-400 text-sm">JARVIS is thinking...</span>
             </div>
           </div>
         )}
@@ -336,17 +384,18 @@ export default function ChatPage() {
             <button
               type="button"
               onClick={stopRecording}
-              className="px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition flex items-center gap-2"
+              className="w-14 h-14 flex items-center justify-center rounded-full bg-blue-500 hover:bg-blue-600 transition relative"
+              title="Click to stop recording"
             >
-              <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
-              Stop
+              <div className="w-12 h-12 pulse-circle rounded-full bg-blue-500"></div>
+              <div className="absolute w-6 h-6 bg-white rounded-full"></div>
             </button>
           ) : (
             <button
               type="button"
               onClick={startRecording}
               disabled={isLoading}
-              className="px-4 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg disabled:opacity-50 transition"
+              className="w-12 h-12 flex items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xl disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg hover:shadow-xl"
               title="Click to record voice message"
             >
               🎤
