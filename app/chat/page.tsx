@@ -314,7 +314,8 @@ export default function ChatPage() {
       recognition.onerror = (event: any) => {
         console.error('Speech recognition error:', event.error);
         setIsRecording(false);
-        if (event.error !== 'no-speech') {
+        // Only show alert for real errors, not for expected ones like 'aborted' or 'no-speech'
+        if (event.error !== 'no-speech' && event.error !== 'aborted') {
           alert(`Error: ${event.error}`);
         }
       };
