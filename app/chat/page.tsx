@@ -86,6 +86,141 @@ const styles = `
   .recording-overlay {
     animation: fade-in 0.3s ease-out;
   }
+
+  .voice-mode-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  }
+
+  .waveform-container {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 4px;
+    height: 120px;
+    margin: 30px 0;
+  }
+
+  .waveform-bar {
+    width: 3px;
+    background: linear-gradient(to top, #3b82f6, #60a5fa);
+    border-radius: 2px;
+    transition: height 0.05s ease-out;
+  }
+
+  .voice-circle {
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 80px;
+    margin: 20px 0;
+  }
+
+  .voice-circle.idle {
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0) 70%);
+  }
+
+  .voice-circle.recording {
+    background: radial-gradient(circle, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0) 70%);
+    animation: scale-pulse 1s infinite;
+  }
+
+  .voice-circle.listening {
+    background: radial-gradient(circle, rgba(147, 51, 234, 0.2) 0%, rgba(147, 51, 234, 0) 70%);
+    animation: scale-pulse 1.5s infinite;
+  }
+
+  .voice-circle.speaking {
+    background: radial-gradient(circle, rgba(34, 197, 94, 0.2) 0%, rgba(34, 197, 94, 0) 70%);
+    animation: scale-pulse 0.8s infinite;
+  }
+
+  .transcription-display {
+    min-height: 60px;
+    max-width: 600px;
+    text-align: center;
+    font-size: 18px;
+    color: #e0e7ff;
+    margin: 20px auto;
+    padding: 15px;
+    background: rgba(30, 41, 59, 0.5);
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+  }
+
+  .voice-controls {
+    display: flex;
+    gap: 15px;
+    margin-top: 40px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .voice-control-btn {
+    padding: 12px 24px;
+    border-radius: 8px;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-weight: 600;
+  }
+
+  .voice-control-btn:hover {
+    transform: translateY(-2px);
+  }
+
+  .voice-control-btn.interrupt {
+    background: #ef4444;
+    color: white;
+  }
+
+  .voice-control-btn.interrupt:hover {
+    background: #dc2626;
+  }
+
+  .voice-control-btn.close {
+    background: #6b7280;
+    color: white;
+  }
+
+  .voice-control-btn.close:hover {
+    background: #4b5563;
+  }
+
+  .voice-selector {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 30px;
+  }
+
+  .voice-option {
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 2px solid #4b5563;
+    background: transparent;
+    color: #cbd5e1;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-weight: 600;
+  }
+
+  .voice-option.active {
+    border-color: #3b82f6;
+    background: #3b82f6;
+    color: white;
+  }
+
+  .voice-option:hover {
+    border-color: #60a5fa;
+  }
 `;
 
 interface Message {
@@ -110,9 +245,16 @@ export default function ChatPage() {
   const [voiceChatState, setVoiceChatState] = useState<'idle' | 'recording' | 'listening' | 'speaking'>('idle');
   const [user, setUser] = useState<any>(null);
   const [speechLang, setSpeechLang] = useState<string>('ro-RO'); // Default to Romanian
+  const [voiceType, setVoiceType] = useState<string>('female'); // 'male' or 'female'
+  const [liveTranscription, setLiveTranscription] = useState<string>('');
+  const [waveformBars, setWaveformBars] = useState<number[]>(Array(20).fill(0));
+  const [isAISpeaking, setIsAISpeaking] = useState(false);
+  const [audioContextRef, setAudioContextRef] = useState<AudioContext | null>(null);
+  const [analyserRef, setAnalyserRef] = useState<AnalyserNode | null>(null);
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioPlayingRef = useRef<HTMLAudioElement | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -138,6 +280,42 @@ export default function ChatPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Waveform visualization effect
+  useEffect(() => {
+    if (!isRecording || recordingMode !== 'voice' || !streamRef.current) return;
+
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const analyser = audioContext.createAnalyser();
+    const source = audioContext.createMediaStreamSource(streamRef.current);
+    source.connect(analyser);
+    analyser.fftSize = 256;
+
+    setAudioContextRef(audioContext);
+    setAnalyserRef(analyser);
+
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    const updateWaveform = () => {
+      analyser.getByteFrequencyData(dataArray);
+      const bars = Array.from(dataArray)
+        .slice(0, 20)
+        .map(value => (value / 255) * 100);
+      setWaveformBars(bars);
+
+      if (isRecording) {
+        requestAnimationFrame(updateWaveform);
+      }
+    };
+
+    updateWaveform();
+
+    return () => {
+      analyser.disconnect();
+      source.disconnect();
+    };
+  }, [isRecording, recordingMode]);
 
   const speakText = async (text: string) => {
     try {
@@ -254,8 +432,39 @@ export default function ChatPage() {
       setRecordingMode(mode);
       setInput('');
       setDetectedLanguage('');
+      setLiveTranscription('');
       audioChunksRef.current = [];
       silenceCountRef.current = 0;
+
+      // Start Web Speech API for real-time transcription in voice mode
+      if (mode === 'voice' && 'webkitSpeechRecognition' in window) {
+        const recognition = new (window as any).webkitSpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.onresult = (event: any) => {
+          let interimTranscript = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+              setLiveTranscription(prev => prev + transcript + ' ');
+            } else {
+              interimTranscript += transcript;
+            }
+          }
+          if (interimTranscript) {
+            setLiveTranscription(prev => {
+              const parts = prev.split(' ');
+              parts[parts.length - 1] = interimTranscript;
+              return parts.join(' ');
+            });
+          }
+        };
+
+        recognition.start();
+        (recognition as any)._jarvisInstance = recognition;
+      }
 
       // Update voice chat state
       if (mode === 'voice') {
@@ -324,18 +533,24 @@ export default function ChatPage() {
           if (mode === 'voice') {
             // Voice chat: response is audio
             setVoiceChatState('speaking');
+            setIsAISpeaking(true);
             const audioBlob = await response.blob();
             const audioUrl = URL.createObjectURL(audioBlob);
             const audio = new Audio(audioUrl);
+            audioPlayingRef.current = audio;
 
             audio.onended = () => {
               setVoiceChatState('idle');
+              setIsAISpeaking(false);
               URL.revokeObjectURL(audioUrl);
+              audioPlayingRef.current = null;
             };
 
             audio.onerror = () => {
               setVoiceChatState('idle');
+              setIsAISpeaking(false);
               URL.revokeObjectURL(audioUrl);
+              audioPlayingRef.current = null;
             };
 
             audio.play();
@@ -401,7 +616,132 @@ export default function ChatPage() {
     }
   };
 
+  const interruptAI = () => {
+    if (audioPlayingRef.current) {
+      audioPlayingRef.current.pause();
+      audioPlayingRef.current.currentTime = 0;
+      audioPlayingRef.current = null;
+    }
+    setVoiceChatState('idle');
+    setIsAISpeaking(false);
+    console.log('AI interrupted');
+  };
 
+  const closeVoiceMode = () => {
+    interruptAI();
+    stopRecording();
+    setVoiceChatState('idle');
+    setRecordingMode(null);
+    setLiveTranscription('');
+  };
+
+
+  // Full-screen voice chat UI when in voice mode
+  if (recordingMode === 'voice' || (voiceChatState !== 'idle' && recordingMode === 'voice')) {
+    return (
+      <div className="voice-mode-container">
+        <style>{styles}</style>
+
+        {/* Header */}
+        <div className="absolute top-6 right-6 flex gap-3">
+          {user && <span className="text-slate-300 text-sm">{user.username}</span>}
+          <button
+            onClick={closeVoiceMode}
+            className="voice-control-btn close"
+          >
+            ← Back
+          </button>
+        </div>
+
+        {/* Main Content */}
+        <div className="flex flex-col items-center w-full max-w-2xl px-6">
+          {/* Voice Selector - show before recording starts */}
+          {voiceChatState === 'idle' && !isRecording && (
+            <div className="voice-selector mb-10">
+              <button
+                className={`voice-option ${voiceType === 'female' ? 'active' : ''}`}
+                onClick={() => setVoiceType('female')}
+              >
+                👩 Female
+              </button>
+              <button
+                className={`voice-option ${voiceType === 'male' ? 'active' : ''}`}
+                onClick={() => setVoiceType('male')}
+              >
+                👨 Male
+              </button>
+            </div>
+          )}
+
+          {/* Large Animated Circle */}
+          <div className={`voice-circle ${voiceChatState}`}>
+            {voiceChatState === 'recording' ? '🎤' : voiceChatState === 'listening' ? '👂' : voiceChatState === 'speaking' ? '🔊' : '📊'}
+          </div>
+
+          {/* Waveform Visualization */}
+          {isRecording && voiceChatState === 'recording' && (
+            <div className="waveform-container">
+              {waveformBars.map((height, idx) => (
+                <div
+                  key={idx}
+                  className="waveform-bar"
+                  style={{ height: `${Math.max(5, height)}px` }}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Status Text */}
+          <h2 className="text-white text-2xl font-bold mt-10 mb-4">
+            {voiceChatState === 'recording' && 'Listening...'}
+            {voiceChatState === 'listening' && 'Processing...'}
+            {voiceChatState === 'speaking' && 'JARVIS is speaking'}
+            {voiceChatState === 'idle' && 'Ready to chat'}
+          </h2>
+
+          {/* Live Transcription Display */}
+          {liveTranscription && (
+            <div className="transcription-display">
+              <p className="text-sm text-slate-400 mb-2">You said:</p>
+              <p>{liveTranscription}</p>
+            </div>
+          )}
+
+          {/* Controls */}
+          <div className="voice-controls">
+            {voiceChatState === 'idle' && !isRecording && (
+              <button
+                onClick={() => startRecording('voice')}
+                className="voice-control-btn"
+                style={{ background: '#3b82f6' }}
+              >
+                Start Speaking
+              </button>
+            )}
+            {(voiceChatState === 'recording' || isRecording) && (
+              <button
+                onClick={stopRecording}
+                className="voice-control-btn"
+                style={{ background: '#ef4444' }}
+              >
+                Stop Recording
+              </button>
+            )}
+            {isAISpeaking && (
+              <button
+                onClick={interruptAI}
+                className="voice-control-btn interrupt"
+              >
+                🛑 Interrupt
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Normal chat UI
   return (
     <div className="h-screen flex flex-col bg-slate-900">
       <style>{styles}</style>
