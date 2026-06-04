@@ -185,13 +185,13 @@ export default function ChatPage() {
       const aiResponse = response.response;
       setMessages((prev) => [...prev, { role: 'assistant', content: aiResponse }]);
 
-      // Voice disabled - use /agent page for voice conversations
-      // speakText(aiResponse);
+      // Auto-speak AI response
+      speakText(aiResponse);
     } catch (error: any) {
       console.error('Chat error:', error);
       const errorMsg = 'Sorry, there was an error. Please try again.';
       setMessages((prev) => [...prev, { role: 'assistant', content: errorMsg }]);
-      // speakText(errorMsg);
+      speakText(errorMsg);
     } finally {
       setIsLoading(false);
     }
