@@ -29,6 +29,23 @@ const styles = `
     50% { height: 24px; }
   }
 
+  @keyframes voice-chat-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+  }
+
+  @keyframes voice-chat-ring {
+    0% {
+      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+    }
+    70% {
+      box-shadow: 0 0 0 15px rgba(59, 130, 246, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    }
+  }
+
   .recording-circle {
     animation: pulse-ring 2s infinite, scale-pulse 2s infinite;
   }
@@ -52,6 +69,14 @@ const styles = `
   .wave-bar:nth-child(5) {
     animation-delay: 0s;
   }
+
+  .voice-chat-recording {
+    animation: voice-chat-ring 1.5s infinite;
+  }
+
+  .voice-chat-speaking {
+    animation: voice-chat-pulse 1s infinite;
+  }`
 
   @keyframes fade-in {
     from { opacity: 0; transform: scale(0.8); }
@@ -82,6 +107,7 @@ export default function ChatPage() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [detectedLanguage, setDetectedLanguage] = useState<string>('');
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [voiceChatState, setVoiceChatState] = useState<'idle' | 'recording' | 'listening' | 'speaking'>('idle');
   const [user, setUser] = useState<any>(null);
   const [speechLang, setSpeechLang] = useState<string>('ro-RO'); // Default to Romanian
   const router = useRouter();
@@ -231,6 +257,11 @@ export default function ChatPage() {
       audioChunksRef.current = [];
       silenceCountRef.current = 0;
 
+      // Update voice chat state
+      if (mode === 'voice') {
+        setVoiceChatState('recording');
+      }
+
       // Request microphone access
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
@@ -264,6 +295,11 @@ export default function ChatPage() {
 
         // Send to backend
         try {
+          // Update state for voice chat
+          if (mode === 'voice') {
+            setVoiceChatState('listening');
+          }
+
           const formData = new FormData();
           formData.append('file', audioBlob, 'audio.wav');
 
@@ -287,9 +323,21 @@ export default function ChatPage() {
           // Handle voice chat response (audio) vs dictate response (text)
           if (mode === 'voice') {
             // Voice chat: response is audio
+            setVoiceChatState('speaking');
             const audioBlob = await response.blob();
             const audioUrl = URL.createObjectURL(audioBlob);
             const audio = new Audio(audioUrl);
+
+            audio.onended = () => {
+              setVoiceChatState('idle');
+              URL.revokeObjectURL(audioUrl);
+            };
+
+            audio.onerror = () => {
+              setVoiceChatState('idle');
+              URL.revokeObjectURL(audioUrl);
+            };
+
             audio.play();
             console.log('Playing AI response...');
           } else {
@@ -304,6 +352,9 @@ export default function ChatPage() {
         } catch (error) {
           console.error('Transcription error:', error);
           alert('Failed to transcribe audio');
+          if (mode === 'voice') {
+            setVoiceChatState('idle');
+          }
         } finally {
           setIsRecording(false);
           setRecordingMode(null);
@@ -345,6 +396,9 @@ export default function ChatPage() {
     }
     setIsRecording(false);
     setRecordingMode(null);
+    if (voiceChatState === 'recording') {
+      setVoiceChatState('idle');
+    }
   };
 
 
@@ -492,15 +546,34 @@ export default function ChatPage() {
             🎤
           </button>
 
-          {/* Voice Chat Button */}
+          {/* Voice Chat Button - Always Visible with State */}
           <button
             type="button"
-            onClick={() => startRecording('voice')}
-            disabled={isLoading || isRecording}
-            className="w-12 h-12 flex items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xl disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg hover:shadow-xl"
-            title="Voice Chat - speak to chat"
+            onClick={() => {
+              if (voiceChatState === 'recording') {
+                stopRecording();
+              } else if (voiceChatState === 'idle') {
+                startRecording('voice');
+              }
+            }}
+            disabled={isLoading || (voiceChatState !== 'idle' && voiceChatState !== 'recording')}
+            className={`w-12 h-12 flex items-center justify-center rounded-full text-white text-xl transition shadow-lg hover:shadow-xl ${
+              voiceChatState === 'idle'
+                ? 'bg-blue-600 hover:bg-blue-700'
+                : voiceChatState === 'recording'
+                ? 'bg-red-600 hover:bg-red-700 voice-chat-recording'
+                : voiceChatState === 'listening'
+                ? 'bg-purple-600 hover:bg-purple-700 animate-pulse'
+                : 'bg-green-600 hover:bg-green-700 voice-chat-speaking'
+            } ${isLoading || (voiceChatState !== 'idle' && voiceChatState !== 'recording') ? 'disabled:opacity-50 disabled:cursor-not-allowed' : ''}`}
+            title={
+              voiceChatState === 'recording' ? 'Click to stop recording' :
+              voiceChatState === 'listening' ? 'Listening to AI...' :
+              voiceChatState === 'speaking' ? 'AI is speaking...' :
+              'Voice Chat - click to speak'
+            }
           >
-            📊
+            {voiceChatState === 'recording' ? '🔴' : voiceChatState === 'listening' ? '👂' : voiceChatState === 'speaking' ? '🔊' : '📊'}
           </button>
 
           <button
