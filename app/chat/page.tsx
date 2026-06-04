@@ -19,13 +19,11 @@ export default function ChatPage() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [isTranscribing, setIsTranscribing] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+  const mediaRecorderRef = useRef<any>(null);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -77,74 +75,62 @@ export default function ChatPage() {
 
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
-      });
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
+      const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
+      if (!SpeechRecognition) {
+        alert('Speech Recognition not supported in your browser');
+        return;
+      }
 
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        setIsRecording(true);
+        setInput(''); // Clear previous text
+      };
+
+      recognition.onresult = (event) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + ' ';
+          } else {
+            interimTranscript += transcript;
+          }
         }
+
+        // Show live text as user speaks
+        setInput(finalTranscript + interimTranscript);
       };
 
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        stream.getTracks().forEach(track => track.stop());
-        await transcribeAudio(audioBlob);
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
       };
 
-      mediaRecorder.start();
-      setIsRecording(true);
+      recognition.onend = () => {
+        setIsRecording(false);
+      };
+
+      mediaRecorderRef.current = recognition;
+      recognition.start();
     } catch (error) {
-      console.error('Microphone access denied:', error);
-      alert('Please allow microphone access');
+      console.error('Speech recognition error:', error);
+      alert('Could not start speech recognition');
     }
   };
 
   const stopRecording = () => {
     if (mediaRecorderRef.current) {
-      mediaRecorderRef.current.stop();
+      (mediaRecorderRef.current as any).stop();
       setIsRecording(false);
     }
   };
 
-  const transcribeAudio = async (audioBlob: Blob) => {
-    setIsTranscribing(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', audioBlob, 'audio.webm');
-
-      const token = localStorage.getItem('token');
-      const response = await fetch('https://jarvis-api-kx4n.onrender.com/api/v1/voice/transcribe', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.detail || `Transcription failed: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const transcribedText = data.text || data.transcription;
-      if (transcribedText) {
-        setInput(transcribedText);
-      } else {
-        throw new Error('No transcription returned');
-      }
-    } catch (error) {
-      console.error('Transcription error:', error);
-      alert('Failed to transcribe audio');
-    } finally {
-      setIsTranscribing(false);
-    }
-  };
 
   return (
     <div className="h-screen flex flex-col bg-slate-900">
@@ -199,20 +185,13 @@ export default function ChatPage() {
 
       {/* Input Area */}
       <div className="bg-slate-800 border-t border-slate-700 px-6 py-4">
-        {isTranscribing && (
-          <div className="mb-2 text-sm text-yellow-400 flex items-center gap-2">
-            <span className="inline-block w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>
-            Transcribing...
-          </div>
-        )}
-
         <form onSubmit={handleSend} className="flex gap-3">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask me anything... or use voice 🎤"
-            disabled={isLoading || isRecording || isTranscribing}
+            placeholder="Type or click 🎤 to speak..."
+            disabled={isLoading || isRecording}
             className="flex-1 px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
           />
 
@@ -229,7 +208,7 @@ export default function ChatPage() {
             <button
               type="button"
               onClick={startRecording}
-              disabled={isLoading || isTranscribing}
+              disabled={isLoading}
               className="px-4 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg disabled:opacity-50 transition"
               title="Click to record voice message"
             >
@@ -239,7 +218,7 @@ export default function ChatPage() {
 
           <button
             type="submit"
-            disabled={isLoading || !input.trim() || isTranscribing}
+            disabled={isLoading || !input.trim()}
             className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
             Send
