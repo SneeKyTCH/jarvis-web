@@ -249,6 +249,7 @@ export default function ChatPage() {
   const [liveTranscription, setLiveTranscription] = useState<string>('');
   const [waveformBars, setWaveformBars] = useState<number[]>(Array(20).fill(0));
   const [isAISpeaking, setIsAISpeaking] = useState(false);
+  const [userSpokeDuringAI, setUserSpokeDuringAI] = useState(false);
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -256,6 +257,7 @@ export default function ChatPage() {
   const audioChunksRef = useRef<Blob[]>([]);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
+  const prevTranscriptionLengthRef = useRef<number>(0);
   const streamRef = useRef<MediaStream | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -278,6 +280,37 @@ export default function ChatPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Auto-start recording when voice mode becomes idle
+  useEffect(() => {
+    if (recordingMode === 'voice' && voiceChatState === 'idle' && !isRecording) {
+      const timer = setTimeout(() => {
+        startRecording('voice');
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [recordingMode, voiceChatState, isRecording]);
+
+  // Auto-interrupt when user speaks during AI speaking
+  useEffect(() => {
+    if (!isAISpeaking) {
+      setUserSpokeDuringAI(false);
+      prevTranscriptionLengthRef.current = 0;
+      return;
+    }
+
+    // Check if user is speaking (transcription is growing)
+    if (liveTranscription.length > prevTranscriptionLengthRef.current) {
+      // User is speaking, interrupt AI
+      if (!userSpokeDuringAI) {
+        setUserSpokeDuringAI(true);
+        interruptAI();
+        setTimeout(() => startRecording('voice'), 300);
+      }
+    }
+
+    prevTranscriptionLengthRef.current = liveTranscription.length;
+  }, [liveTranscription, isAISpeaking]);
 
   // Waveform visualization effect
   useEffect(() => {
@@ -715,35 +748,6 @@ export default function ChatPage() {
           </h2>
 
 
-          {/* Controls */}
-          <div className="voice-controls">
-            {voiceChatState === 'idle' && !isRecording && (
-              <button
-                onClick={() => startRecording('voice')}
-                className="voice-control-btn"
-                style={{ background: '#3b82f6' }}
-              >
-                🎤 Speak Now
-              </button>
-            )}
-            {(voiceChatState === 'recording' || isRecording) && (
-              <button
-                onClick={stopRecording}
-                className="voice-control-btn"
-                style={{ background: '#ef4444' }}
-              >
-                ⏹️ Stop
-              </button>
-            )}
-            {isAISpeaking && (
-              <button
-                onClick={interruptAI}
-                className="voice-control-btn interrupt"
-              >
-                🛑 Interrupt
-              </button>
-            )}
-          </div>
         </div>
       </div>
     );
