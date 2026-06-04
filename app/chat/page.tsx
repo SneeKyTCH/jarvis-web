@@ -75,7 +75,7 @@ export default function ChatPage() {
 
   const startRecording = async () => {
     try {
-      const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
+      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
       if (!SpeechRecognition) {
         alert('Speech Recognition not supported in your browser');
         return;
@@ -86,17 +86,24 @@ export default function ChatPage() {
       recognition.interimResults = true;
       recognition.lang = 'en-US';
 
+      let finalTranscript = '';
+
       recognition.onstart = () => {
+        console.log('Speech recognition started');
         setIsRecording(true);
-        setInput(''); // Clear previous text
+        setInput('');
+        finalTranscript = '';
       };
 
-      recognition.onresult = (event) => {
+      recognition.onresult = (event: any) => {
+        console.log(`Result event: ${event.results.length} results`);
+
         let interimTranscript = '';
-        let finalTranscript = '';
 
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript;
+          console.log(`Result ${i}: "${transcript}" (final: ${event.results[i].isFinal})`);
+
           if (event.results[i].isFinal) {
             finalTranscript += transcript + ' ';
           } else {
@@ -104,15 +111,19 @@ export default function ChatPage() {
           }
         }
 
-        // Show live text as user speaks
-        setInput(finalTranscript + interimTranscript);
+        // Update input with both final and interim text
+        const fullText = finalTranscript + interimTranscript;
+        console.log('Setting input to:', fullText);
+        setInput(fullText);
       };
 
-      recognition.onerror = (event) => {
+      recognition.onerror = (event: any) => {
         console.error('Speech recognition error:', event.error);
+        alert(`Error: ${event.error}`);
       };
 
       recognition.onend = () => {
+        console.log('Speech recognition ended');
         setIsRecording(false);
       };
 
