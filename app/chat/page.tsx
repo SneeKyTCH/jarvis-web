@@ -45,30 +45,65 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const speakText = (text: string) => {
-    if (!('speechSynthesis' in window)) {
-      console.warn('Speech synthesis not supported');
-      return;
+  const speakText = async (text: string) => {
+    try {
+      setIsSpeaking(true);
+      const token = localStorage.getItem('token');
+
+      // Call backend to get audio from Eleven Labs
+      const response = await fetch('https://jarvis-api-kx4n.onrender.com/api/v1/voice/speak', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          text: text,
+          language: 'en',
+          voice_id: 'George'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to synthesize speech');
+      }
+
+      // Get audio blob and play it
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+
+      audio.onended = () => {
+        setIsSpeaking(false);
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      audio.onerror = () => {
+        setIsSpeaking(false);
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      audio.play().catch(err => {
+        console.error('Audio play error:', err);
+        setIsSpeaking(false);
+        URL.revokeObjectURL(audioUrl);
+      });
+
+      utteranceRef.current = audio as any;
+    } catch (error) {
+      console.error('Speak error:', error);
+      setIsSpeaking(false);
     }
-
-    // Cancel any ongoing speech
-    window.speechSynthesis.cancel();
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
-
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-
-    utteranceRef.current = utterance;
-    window.speechSynthesis.speak(utterance);
   };
 
   const stopSpeaking = () => {
-    window.speechSynthesis.cancel();
+    if (utteranceRef.current) {
+      const audio = utteranceRef.current as any;
+      if (audio.pause) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+    }
     setIsSpeaking(false);
   };
 
