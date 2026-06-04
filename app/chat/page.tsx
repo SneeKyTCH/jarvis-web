@@ -9,14 +9,19 @@ import { franc } from 'franc';
 const styles = `
   @keyframes pulse-ring {
     0% {
-      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.8), 0 0 0 0 rgba(59, 130, 246, 0.6);
     }
-    70% {
-      box-shadow: 0 0 0 20px rgba(59, 130, 246, 0);
+    50% {
+      box-shadow: 0 0 0 40px rgba(59, 130, 246, 0), 0 0 0 80px rgba(59, 130, 246, 0);
     }
     100% {
-      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+      box-shadow: 0 0 0 40px rgba(59, 130, 246, 0), 0 0 0 80px rgba(59, 130, 246, 0);
     }
+  }
+
+  @keyframes scale-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
   }
 
   @keyframes wave-bar {
@@ -24,8 +29,8 @@ const styles = `
     50% { height: 24px; }
   }
 
-  .pulse-circle {
-    animation: pulse-ring 1.5s infinite;
+  .recording-circle {
+    animation: pulse-ring 2s infinite, scale-pulse 2s infinite;
   }
 
   .wave-bar {
@@ -46,6 +51,15 @@ const styles = `
 
   .wave-bar:nth-child(5) {
     animation-delay: 0s;
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; transform: scale(0.8); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .recording-overlay {
+    animation: fade-in 0.3s ease-out;
   }
 `;
 
@@ -300,6 +314,34 @@ export default function ChatPage() {
   return (
     <div className="h-screen flex flex-col bg-slate-900">
       <style>{styles}</style>
+
+      {/* Recording Overlay - Large Animated Circle */}
+      {isRecording && (
+        <div className="recording-overlay fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50">
+          <div className="flex flex-col items-center gap-6">
+            {/* Large Pulsing Circle */}
+            <div className="relative w-40 h-40">
+              <div className="recording-circle absolute inset-0 rounded-full bg-blue-500 opacity-80"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <button
+                  onClick={stopRecording}
+                  className="w-24 h-24 rounded-full bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-3xl transition shadow-2xl"
+                >
+                  🎤
+                </button>
+              </div>
+            </div>
+            {/* Recording Status */}
+            <div className="text-center">
+              <h2 className="text-white text-2xl font-bold mb-2">Listening...</h2>
+              <p className="text-slate-300">
+                {detectedLanguage ? `Speaking: ${detectedLanguage}` : 'Detecting language...'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-slate-800 border-b border-slate-700 px-6 py-4 flex justify-between items-center">
         <div>
@@ -380,27 +422,15 @@ export default function ChatPage() {
             className="flex-1 px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
           />
 
-          {isRecording ? (
-            <button
-              type="button"
-              onClick={stopRecording}
-              className="w-14 h-14 flex items-center justify-center rounded-full bg-blue-500 hover:bg-blue-600 transition relative"
-              title="Click to stop recording"
-            >
-              <div className="w-12 h-12 pulse-circle rounded-full bg-blue-500"></div>
-              <div className="absolute w-6 h-6 bg-white rounded-full"></div>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={startRecording}
-              disabled={isLoading}
-              className="w-12 h-12 flex items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xl disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg hover:shadow-xl"
-              title="Click to record voice message"
-            >
-              🎤
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={startRecording}
+            disabled={isLoading || isRecording}
+            className="w-12 h-12 flex items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xl disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg hover:shadow-xl"
+            title="Click to record voice message"
+          >
+            🎤
+          </button>
 
           <button
             type="submit"
