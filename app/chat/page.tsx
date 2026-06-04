@@ -87,6 +87,8 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<any>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastResultTimeRef = useRef<number>(0);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -245,6 +247,25 @@ export default function ChatPage() {
         console.log('Setting input to:', fullText);
         setInput(fullText);
 
+        // Reset silence timer on each result
+        lastResultTimeRef.current = Date.now();
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current);
+        }
+
+        // Auto-stop after 2.5 seconds of silence
+        silenceTimerRef.current = setTimeout(() => {
+          console.log('Silence detected - stopping recording');
+          if (mediaRecorderRef.current) {
+            try {
+              (mediaRecorderRef.current as any).abort();
+            } catch (error) {
+              console.error('Error stopping recognition:', error);
+            }
+            setIsRecording(false);
+          }
+        }, 2500);
+
         // Auto-detect language using hybrid approach
         if (fullText.trim().length > 2) {
           try {
@@ -296,6 +317,24 @@ export default function ChatPage() {
       recognition.onend = () => {
         console.log('Speech recognition ended');
         setIsRecording(false);
+
+        // Clear silence timer
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current);
+        }
+
+        // Auto-submit message if there's text
+        setTimeout(() => {
+          setInput((currentInput) => {
+            const textToSend = currentInput.trim();
+            if (textToSend) {
+              console.log('Auto-submitting:', textToSend);
+              // Trigger the send
+              handleSend({ preventDefault: () => {} } as any);
+            }
+            return currentInput;
+          });
+        }, 300);
       };
 
       mediaRecorderRef.current = recognition;
@@ -307,6 +346,9 @@ export default function ChatPage() {
   };
 
   const stopRecording = () => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+    }
     if (mediaRecorderRef.current) {
       try {
         (mediaRecorderRef.current as any).abort();
