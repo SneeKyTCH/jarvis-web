@@ -248,7 +248,7 @@ export default function ChatPage() {
             clearTimeout(silenceTimerRef.current);
           }
 
-          // Auto-stop after 300ms of silence (only after final result)
+          // Auto-stop after 100ms of silence (only after final result)
           silenceTimerRef.current = setTimeout(() => {
             console.log('Silence detected - stopping recording');
             if (mediaRecorderRef.current) {
@@ -259,7 +259,7 @@ export default function ChatPage() {
               }
               setIsRecording(false);
             }
-          }, 300);
+          }, 100);
         }
 
         // Auto-detect language using hybrid approach
