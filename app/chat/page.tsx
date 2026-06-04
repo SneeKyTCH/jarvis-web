@@ -217,6 +217,12 @@ export default function ChatPage() {
         <div>
           <h1 className="text-3xl font-bold text-white">JARVIS</h1>
           <p className="text-slate-400 text-sm">Chat with AI {isSpeaking && '🔊 Speaking...'}</p>
+          <button
+            onClick={() => router.push('/agent')}
+            className="mt-2 text-xs bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded transition"
+          >
+            Try Voice Agent →
+          </button>
         </div>
         <div className="flex items-center gap-4">
           {isSpeaking && (
