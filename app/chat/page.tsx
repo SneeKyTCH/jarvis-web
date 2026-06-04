@@ -19,11 +19,13 @@ export default function ChatPage() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<any>(null);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -43,6 +45,33 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const speakText = (text: string) => {
+    if (!('speechSynthesis' in window)) {
+      console.warn('Speech synthesis not supported');
+      return;
+    }
+
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
+    utteranceRef.current = utterance;
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const stopSpeaking = () => {
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+  };
+
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -55,13 +84,16 @@ export default function ChatPage() {
     try {
       const response = await chatAPI.send(userMessage, conversationId);
       setConversationId(response.conversation_id);
-      setMessages((prev) => [...prev, { role: 'assistant', content: response.response }]);
+      const aiResponse = response.response;
+      setMessages((prev) => [...prev, { role: 'assistant', content: aiResponse }]);
+
+      // Auto-speak AI response
+      speakText(aiResponse);
     } catch (error: any) {
       console.error('Chat error:', error);
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: 'Sorry, there was an error. Please try again.' }
-      ]);
+      const errorMsg = 'Sorry, there was an error. Please try again.';
+      setMessages((prev) => [...prev, { role: 'assistant', content: errorMsg }]);
+      speakText(errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -149,9 +181,17 @@ export default function ChatPage() {
       <div className="bg-slate-800 border-b border-slate-700 px-6 py-4 flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-white">JARVIS</h1>
-          <p className="text-slate-400 text-sm">Chat with AI</p>
+          <p className="text-slate-400 text-sm">Chat with AI {isSpeaking && '🔊 Speaking...'}</p>
         </div>
         <div className="flex items-center gap-4">
+          {isSpeaking && (
+            <button
+              onClick={stopSpeaking}
+              className="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 text-white text-sm rounded font-semibold transition"
+            >
+              Stop
+            </button>
+          )}
           {user && <span className="text-slate-300">{user.username}</span>}
           <button
             onClick={handleLogout}
