@@ -33,9 +33,12 @@ export default function AgentPage() {
       // Request microphone access
       await navigator.mediaDevices.getUserMedia({ audio: true });
 
-      // Start conversation with agent
+      // Start conversation with agent (Romanian language)
       await conversation.startSession({
         agentId: AGENT_ID,
+        overrides: {
+          language: 'ro', // Romanian
+        },
       });
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to start agent';
