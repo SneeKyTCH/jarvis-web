@@ -37,7 +37,9 @@ export default function AgentPage() {
       await conversation.startSession({
         agentId: AGENT_ID,
         overrides: {
-          language: 'ro', // Romanian
+          agent: {
+            language: 'ro', // Romanian
+          },
         },
       });
     } catch (err) {
