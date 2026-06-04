@@ -483,21 +483,6 @@ export default function ChatPage() {
             });
           }
 
-          // After 5 seconds of speaking, show "JARVIS is speaking" (visual feedback only)
-          if (speechStartTimeRef.current && !speakingTimerRef.current) {
-            const elapsedTime = Date.now() - speechStartTimeRef.current;
-            if (elapsedTime >= 5000) {
-              setUserSpeakingFor5Sec(true);
-              console.log('5 seconds elapsed, visual feedback shown');
-            } else {
-              // Set timer for remaining time
-              const remainingTime = 5000 - elapsedTime;
-              speakingTimerRef.current = setTimeout(() => {
-                setUserSpeakingFor5Sec(true);
-                speakingTimerRef.current = null;
-              }, remainingTime);
-            }
-          }
         };
 
         recognition.start();
@@ -760,9 +745,8 @@ export default function ChatPage() {
 
           {/* Status Text */}
           <h2 className="text-white text-2xl font-bold mt-10 mb-8">
-            {voiceChatState === 'recording' && userSpeakingFor5Sec && 'JARVIS is speaking'}
-            {voiceChatState === 'recording' && !userSpeakingFor5Sec && liveTranscription && 'You\'re speaking...'}
-            {voiceChatState === 'recording' && !userSpeakingFor5Sec && !liveTranscription && 'Listening...'}
+            {voiceChatState === 'recording' && liveTranscription && 'You\'re speaking...'}
+            {voiceChatState === 'recording' && !liveTranscription && 'Listening...'}
             {voiceChatState === 'listening' && 'Processing...'}
             {voiceChatState === 'speaking' && 'JARVIS is speaking'}
             {voiceChatState === 'idle' && 'Ready to chat'}
