@@ -503,6 +503,13 @@ export default function ChatPage() {
 
       {/* Input Area */}
       <div className="bg-slate-800 border-t border-slate-700 px-6 py-4">
+        {/* Detected Language Indicator */}
+        {isRecording && detectedLanguage && (
+          <div className="mb-3 text-sm text-blue-400">
+            Detected: {detectedLanguage}
+          </div>
+        )}
+
         <form onSubmit={handleSend} className="flex gap-3">
           <input
             type="text"
