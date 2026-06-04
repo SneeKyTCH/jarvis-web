@@ -24,6 +24,7 @@ export default function ChatPage() {
   const [detectedLanguage, setDetectedLanguage] = useState<string>('');
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
+  const [speechLang, setSpeechLang] = useState<string>('ro-RO'); // Default to Romanian
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<any>(null);
@@ -153,7 +154,7 @@ export default function ChatPage() {
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
-      recognition.lang = 'en-US'; // Start with English, will auto-detect
+      recognition.lang = speechLang; // Use dynamic language (default: ro-RO for Romanian)
 
       let finalTranscript = '';
 
@@ -205,18 +206,21 @@ export default function ChatPage() {
               }
             }
 
-            // Map language codes to names with flags
-            const langMap: { [key: string]: string } = {
-              'ron': 'Română 🇷🇴',
-              'eng': 'English 🇺🇸',
-              'spa': 'Español 🇪🇸',
-              'fra': 'Français 🇫🇷',
-              'deu': 'Deutsch 🇩🇪',
-              'ita': 'Italiano 🇮🇹',
-              'por': 'Português 🇵🇹',
+            // Map language codes to names with flags AND speech recognition language codes
+            const langMap: { [key: string]: { name: string; speechLang: string } } = {
+              'ron': { name: 'Română 🇷🇴', speechLang: 'ro-RO' },
+              'eng': { name: 'English 🇺🇸', speechLang: 'en-US' },
+              'spa': { name: 'Español 🇪🇸', speechLang: 'es-ES' },
+              'fra': { name: 'Français 🇫🇷', speechLang: 'fr-FR' },
+              'deu': { name: 'Deutsch 🇩🇪', speechLang: 'de-DE' },
+              'ita': { name: 'Italiano 🇮🇹', speechLang: 'it-IT' },
+              'por': { name: 'Português 🇵🇹', speechLang: 'pt-PT' },
             };
 
-            setDetectedLanguage(langMap[detectedLang] || detectedLang);
+            const langInfo = langMap[detectedLang] || { name: detectedLang, speechLang: 'en-US' };
+            setDetectedLanguage(langInfo.name);
+            setSpeechLang(langInfo.speechLang);
+            console.log(`Language set to: ${langInfo.speechLang}`);
           } catch (error) {
             console.error('Language detection error:', error);
           }
@@ -318,6 +322,65 @@ export default function ChatPage() {
 
       {/* Input Area */}
       <div className="bg-slate-800 border-t border-slate-700 px-6 py-4">
+        {/* Language Selector */}
+        <div className="mb-3 flex gap-2 flex-wrap">
+          <span className="text-slate-400 text-sm self-center">Language:</span>
+          <button
+            type="button"
+            onClick={() => setSpeechLang('ro-RO')}
+            className={`px-3 py-1 rounded text-sm font-semibold transition ${
+              speechLang === 'ro-RO'
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+            }`}
+          >
+            🇷🇴 Română
+          </button>
+          <button
+            type="button"
+            onClick={() => setSpeechLang('en-US')}
+            className={`px-3 py-1 rounded text-sm font-semibold transition ${
+              speechLang === 'en-US'
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+            }`}
+          >
+            🇺🇸 English
+          </button>
+          <button
+            type="button"
+            onClick={() => setSpeechLang('es-ES')}
+            className={`px-3 py-1 rounded text-sm font-semibold transition ${
+              speechLang === 'es-ES'
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+            }`}
+          >
+            🇪🇸 Español
+          </button>
+          <button
+            type="button"
+            onClick={() => setSpeechLang('fr-FR')}
+            className={`px-3 py-1 rounded text-sm font-semibold transition ${
+              speechLang === 'fr-FR'
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+            }`}
+          >
+            🇫🇷 Français
+          </button>
+          <button
+            type="button"
+            onClick={() => setSpeechLang('de-DE')}
+            className={`px-3 py-1 rounded text-sm font-semibold transition ${
+              speechLang === 'de-DE'
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+            }`}
+          >
+            🇩🇪 Deutsch
+          </button>
+        </div>
         <form onSubmit={handleSend} className="flex gap-3">
           <input
             type="text"
