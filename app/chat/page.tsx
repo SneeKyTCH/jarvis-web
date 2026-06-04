@@ -77,16 +77,20 @@ export default function ChatPage() {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
       mediaRecorder.ondataavailable = (event) => {
-        audioChunksRef.current.push(event.data);
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         stream.getTracks().forEach(track => track.stop());
         await transcribeAudio(audioBlob);
       };
@@ -110,24 +114,32 @@ export default function ChatPage() {
     setIsLoading(true);
     try {
       const formData = new FormData();
-      formData.append('file', audioBlob, 'audio.wav');
+      formData.append('file', audioBlob, 'audio.webm');
 
+      const token = localStorage.getItem('token');
       const response = await fetch('https://jarvis-api-kx4n.onrender.com/api/v1/voice/transcribe', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         },
         body: formData
       });
 
-      if (!response.ok) throw new Error('Transcription failed');
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.detail || `Transcription failed: ${response.status}`);
+      }
 
       const data = await response.json();
-      const transcribedText = data.transcription || data.text;
-      setInput(transcribedText);
+      const transcribedText = data.text || data.transcription;
+      if (transcribedText) {
+        setInput(transcribedText);
+      } else {
+        throw new Error('No transcription returned');
+      }
     } catch (error) {
       console.error('Transcription error:', error);
-      alert('Failed to transcribe audio');
+      alert('Failed to transcribe audio: ' + error);
     } finally {
       setIsLoading(false);
     }
