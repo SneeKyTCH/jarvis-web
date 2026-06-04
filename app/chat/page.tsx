@@ -700,43 +700,29 @@ export default function ChatPage() {
             {voiceChatState === 'idle' && 'Ready to chat'}
           </h2>
 
-          {/* Live Transcription Display */}
-          {liveTranscription && (
-            <div className="transcription-display">
-              <p className="text-sm text-slate-400 mb-2">You said:</p>
-              <p>{liveTranscription}</p>
+
+          {/* Auto-start recording when entering voice mode */}
+          {voiceChatState === 'idle' && !isRecording && (
+            <div style={{ display: 'none' }}>
+              {(() => {
+                setTimeout(() => startRecording('voice'), 300);
+                return null;
+              })()}
             </div>
           )}
 
-          {/* Controls */}
-          <div className="voice-controls">
-            {voiceChatState === 'idle' && !isRecording && (
-              <button
-                onClick={() => startRecording('voice')}
-                className="voice-control-btn"
-                style={{ background: '#3b82f6' }}
-              >
-                Start Speaking
-              </button>
-            )}
-            {(voiceChatState === 'recording' || isRecording) && (
-              <button
-                onClick={stopRecording}
-                className="voice-control-btn"
-                style={{ background: '#ef4444' }}
-              >
-                Stop Recording
-              </button>
-            )}
-            {isAISpeaking && (
-              <button
-                onClick={interruptAI}
-                className="voice-control-btn interrupt"
-              >
-                🛑 Interrupt
-              </button>
-            )}
-          </div>
+          {/* Auto-interrupt when user speaks while AI is speaking */}
+          {isAISpeaking && (
+            <div style={{ display: 'none' }}>
+              {(() => {
+                if (liveTranscription.length > 0) {
+                  interruptAI();
+                  setTimeout(() => startRecording('voice'), 500);
+                }
+                return null;
+              })()}
+            </div>
+          )}
         </div>
       </div>
     );
