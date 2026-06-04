@@ -715,28 +715,35 @@ export default function ChatPage() {
           </h2>
 
 
-          {/* Auto-start recording when entering voice mode */}
-          {voiceChatState === 'idle' && !isRecording && (
-            <div style={{ display: 'none' }}>
-              {(() => {
-                setTimeout(() => startRecording('voice'), 300);
-                return null;
-              })()}
-            </div>
-          )}
-
-          {/* Auto-interrupt when user speaks while AI is speaking */}
-          {isAISpeaking && (
-            <div style={{ display: 'none' }}>
-              {(() => {
-                if (liveTranscription.length > 0) {
-                  interruptAI();
-                  setTimeout(() => startRecording('voice'), 500);
-                }
-                return null;
-              })()}
-            </div>
-          )}
+          {/* Controls */}
+          <div className="voice-controls">
+            {voiceChatState === 'idle' && !isRecording && (
+              <button
+                onClick={() => startRecording('voice')}
+                className="voice-control-btn"
+                style={{ background: '#3b82f6' }}
+              >
+                🎤 Speak Now
+              </button>
+            )}
+            {(voiceChatState === 'recording' || isRecording) && (
+              <button
+                onClick={stopRecording}
+                className="voice-control-btn"
+                style={{ background: '#ef4444' }}
+              >
+                ⏹️ Stop
+              </button>
+            )}
+            {isAISpeaking && (
+              <button
+                onClick={interruptAI}
+                className="voice-control-btn interrupt"
+              >
+                🛑 Interrupt
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );
