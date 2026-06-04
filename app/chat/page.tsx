@@ -257,18 +257,22 @@ export default function ChatPage() {
       };
 
       mediaRecorder.onstop = async () => {
-        console.log('Recording stopped, sending to Azure...');
+        console.log('Recording stopped, processing audio...');
 
-        // Create audio blob as WAV (Azure Speech SDK requires valid audio header)
+        // Create audio blob
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
 
-        // Send to backend for transcription
+        // Send to backend
         try {
           const formData = new FormData();
           formData.append('file', audioBlob, 'audio.wav');
 
           const token = localStorage.getItem('token');
-          const response = await fetch('https://jarvis-api-kx4n.onrender.com/api/v1/voice/detect-language-and-transcribe', {
+          const endpoint = mode === 'voice'
+            ? 'https://jarvis-api-kx4n.onrender.com/api/v1/voice/voice-chat'
+            : 'https://jarvis-api-kx4n.onrender.com/api/v1/voice/detect-language-and-transcribe';
+
+          const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`
@@ -277,25 +281,25 @@ export default function ChatPage() {
           });
 
           if (!response.ok) {
-            throw new Error(`Transcription failed: ${response.status}`);
+            throw new Error(`Request failed: ${response.status}`);
           }
 
-          const result = await response.json();
-          const { text, language, language_name } = result;
+          // Handle voice chat response (audio) vs dictate response (text)
+          if (mode === 'voice') {
+            // Voice chat: response is audio
+            const audioBlob = await response.blob();
+            const audioUrl = URL.createObjectURL(audioBlob);
+            const audio = new Audio(audioUrl);
+            audio.play();
+            console.log('Playing AI response...');
+          } else {
+            // Dictate: response is JSON with transcribed text
+            const result = await response.json();
+            const { text, language, language_name } = result;
 
-          console.log(`Transcribed: "${text}" (Language: ${language_name})`);
-
-          // Set detected language
-          setDetectedLanguage(language_name);
-
-          // Set input text
-          setInput(text);
-
-          // Auto-submit only in voice mode
-          if (mode === 'voice' && text.trim()) {
-            setTimeout(() => {
-              handleSend({ preventDefault: () => {} } as any);
-            }, 300);
+            console.log(`Transcribed: "${text}" (Language: ${language_name})`);
+            setDetectedLanguage(language_name);
+            setInput(text);
           }
         } catch (error) {
           console.error('Transcription error:', error);
