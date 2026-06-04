@@ -287,7 +287,10 @@ export default function ChatPage() {
 
       recognition.onerror = (event: any) => {
         console.error('Speech recognition error:', event.error);
-        alert(`Error: ${event.error}`);
+        setIsRecording(false);
+        if (event.error !== 'no-speech') {
+          alert(`Error: ${event.error}`);
+        }
       };
 
       recognition.onend = () => {
@@ -305,8 +308,14 @@ export default function ChatPage() {
 
   const stopRecording = () => {
     if (mediaRecorderRef.current) {
-      (mediaRecorderRef.current as any).stop();
+      try {
+        (mediaRecorderRef.current as any).abort();
+        console.log('Speech recognition stopped');
+      } catch (error) {
+        console.error('Error stopping recognition:', error);
+      }
       setIsRecording(false);
+      setDetectedLanguage('');
     }
   };
 
@@ -318,6 +327,14 @@ export default function ChatPage() {
       {/* Recording Overlay - Large Animated Circle */}
       {isRecording && (
         <div className="recording-overlay fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50">
+          {/* Close Button */}
+          <button
+            onClick={stopRecording}
+            className="absolute top-6 right-6 text-white text-3xl hover:opacity-70 transition z-60"
+          >
+            ✕
+          </button>
+
           <div className="flex flex-col items-center gap-6">
             {/* Large Pulsing Circle */}
             <div className="relative w-40 h-40">
@@ -325,7 +342,8 @@ export default function ChatPage() {
               <div className="absolute inset-0 flex items-center justify-center">
                 <button
                   onClick={stopRecording}
-                  className="w-24 h-24 rounded-full bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-3xl transition shadow-2xl"
+                  className="w-24 h-24 rounded-full bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-3xl transition shadow-2xl hover:shadow-3xl"
+                  title="Click to stop recording"
                 >
                   🎤
                 </button>
@@ -337,6 +355,7 @@ export default function ChatPage() {
               <p className="text-slate-300">
                 {detectedLanguage ? `Speaking: ${detectedLanguage}` : 'Detecting language...'}
               </p>
+              <p className="text-slate-400 text-sm mt-4">Click circle or ✕ to stop</p>
             </div>
           </div>
         </div>
