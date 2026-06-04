@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { chatAPI } from '@/lib/api';
-import { detect } from 'franc';
+import franc from 'franc';
 
 interface Message {
   role: 'user' | 'assistant';
