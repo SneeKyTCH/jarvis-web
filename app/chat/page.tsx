@@ -189,7 +189,7 @@ export default function ChatPage() {
         // Auto-detect language using franc
         if (fullText.trim().length > 5) {
           try {
-            const detectedLang = detect(fullText);
+            const detectedLang = franc(fullText);
             console.log('Detected language:', detectedLang);
 
             // Map language codes to names with flags
