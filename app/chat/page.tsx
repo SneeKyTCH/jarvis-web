@@ -86,10 +86,14 @@ export default function ChatPage() {
   const [speechLang, setSpeechLang] = useState<string>('ro-RO'); // Default to Romanian
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const mediaRecorderRef = useRef<any>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const lastResultTimeRef = useRef<number>(0);
+  const silenceCountRef = useRef<number>(0);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -219,166 +223,101 @@ export default function ChatPage() {
 
   const startRecording = async (mode: 'dictate' | 'voice') => {
     try {
-      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-      if (!SpeechRecognition) {
-        alert('Speech Recognition not supported in your browser');
-        return;
-      }
+      console.log(`Starting recording - Mode: ${mode}`);
+      setIsRecording(true);
+      setRecordingMode(mode);
+      setInput('');
+      setDetectedLanguage('');
+      audioChunksRef.current = [];
+      silenceCountRef.current = 0;
 
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = speechLang; // Use dynamic language (default: ro-RO for Romanian)
+      // Request microphone access
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
 
-      let finalTranscript = '';
-      let hasFinalResult = false;
+      // Create MediaRecorder
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
 
-      recognition.onstart = () => {
-        console.log(`Speech recognition started - Mode: ${mode}`);
-        setIsRecording(true);
-        setRecordingMode(mode);
-        setInput('');
-        setDetectedLanguage('');
-        finalTranscript = '';
-        hasFinalResult = false;
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
       };
 
-      recognition.onresult = (event: any) => {
-        console.log(`Result event: ${event.results.length} results`);
+      mediaRecorder.onstop = async () => {
+        console.log('Recording stopped, sending to Azure...');
 
-        let interimTranscript = '';
+        // Create audio blob
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
 
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-          console.log(`Result ${i}: "${transcript}" (final: ${event.results[i].isFinal})`);
+        // Send to backend for transcription
+        try {
+          const formData = new FormData();
+          formData.append('file', audioBlob, 'audio.webm');
 
-          if (event.results[i].isFinal) {
-            finalTranscript += transcript + ' ';
-            hasFinalResult = true;
-          } else {
-            interimTranscript += transcript;
-          }
-        }
+          const token = localStorage.getItem('token');
+          const response = await fetch('https://jarvis-api-kx4n.onrender.com/api/v1/voice/detect-language-and-transcribe', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            },
+            body: formData
+          });
 
-        // Update input with both final and interim text
-        const fullText = finalTranscript + interimTranscript;
-        console.log('Setting input to:', fullText);
-        setInput(fullText);
-
-        // Only start silence timer after we have a final result
-        if (hasFinalResult) {
-          lastResultTimeRef.current = Date.now();
-          if (silenceTimerRef.current) {
-            clearTimeout(silenceTimerRef.current);
+          if (!response.ok) {
+            throw new Error(`Transcription failed: ${response.status}`);
           }
 
-          // Auto-stop after 100ms of silence (only after final result)
-          silenceTimerRef.current = setTimeout(() => {
-            console.log('Silence detected - stopping recording');
-            if (mediaRecorderRef.current) {
-              try {
-                (mediaRecorderRef.current as any).abort();
-              } catch (error) {
-                console.error('Error stopping recognition:', error);
-              }
-              setIsRecording(false);
-            }
-          }, 100);
-        }
+          const result = await response.json();
+          const { text, language, language_name } = result;
 
-        // Auto-detect language using hybrid approach
-        if (fullText.trim().length > 2) {
-          try {
-            let detectedLang = 'eng';
+          console.log(`Transcribed: "${text}" (Language: ${language_name})`);
 
-            // Check for Romanian characters first
-            if (/[ăâîșț]/i.test(fullText)) {
-              detectedLang = 'ron';
-              console.log('Detected Romanian by characters');
-            } else {
-              // Try franc for language detection
-              try {
-                const francResult = franc(fullText);
-                console.log('Franc detected:', francResult);
+          // Set detected language
+          setDetectedLanguage(language_name);
 
-                // Map franc results
-                if (francResult === 'ron' || francResult === 'sco' || francResult === 'glg') {
-                  detectedLang = 'ron'; // Trust franc for Romanian
-                } else if (francResult && francResult !== 'und') {
-                  detectedLang = francResult; // Use franc result if valid
-                } else {
-                  detectedLang = 'eng'; // Default to English
-                }
-              } catch (e) {
-                console.log('Franc detection failed, defaulting to English');
-                detectedLang = 'eng';
-              }
-            }
+          // Set input text
+          setInput(text);
 
-            console.log('Final detected language:', detectedLang, 'from text:', fullText.substring(0, 50));
-
-            // Map language codes to names with flags AND speech recognition language codes
-            const langMap: { [key: string]: { name: string; speechLang: string } } = {
-              'ron': { name: 'Română 🇷🇴', speechLang: 'ro-RO' },
-              'eng': { name: 'English 🇺🇸', speechLang: 'en-US' },
-              'spa': { name: 'Español 🇪🇸', speechLang: 'es-ES' },
-              'fra': { name: 'Français 🇫🇷', speechLang: 'fr-FR' },
-              'deu': { name: 'Deutsch 🇩🇪', speechLang: 'de-DE' },
-              'ita': { name: 'Italiano 🇮🇹', speechLang: 'it-IT' },
-              'por': { name: 'Português 🇵🇹', speechLang: 'pt-PT' },
-            };
-
-            const langInfo = langMap[detectedLang] || { name: detectedLang, speechLang: 'en-US' };
-            setDetectedLanguage(langInfo.name);
-            setSpeechLang(langInfo.speechLang);
-            console.log(`Language set to: ${langInfo.speechLang}`);
-          } catch (error) {
-            console.error('Language detection error:', error);
+          // Auto-submit only in voice mode
+          if (mode === 'voice' && text.trim()) {
+            setTimeout(() => {
+              handleSend({ preventDefault: () => {} } as any);
+            }, 300);
           }
+        } catch (error) {
+          console.error('Transcription error:', error);
+          alert('Failed to transcribe audio');
+        } finally {
+          setIsRecording(false);
+          setRecordingMode(null);
+
+          // Stop all tracks
+          streamRef.current?.getTracks().forEach(track => track.stop());
         }
       };
 
-      recognition.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error);
-        setIsRecording(false);
-        // Only show alert for real errors, not for expected ones like 'aborted' or 'no-speech'
-        if (event.error !== 'no-speech' && event.error !== 'aborted') {
-          alert(`Error: ${event.error}`);
+      // Start recording
+      mediaRecorder.start();
+
+      // Detect silence every 500ms
+      const silenceCheck = setInterval(() => {
+        // Stop after 2 seconds of detection or 10 seconds max
+        silenceCountRef.current++;
+        if (silenceCountRef.current > 4 || silenceCountRef.current > 20) {
+          clearInterval(silenceCheck);
+          mediaRecorder.stop();
         }
-      };
+      }, 500);
 
-      recognition.onend = () => {
-        console.log('Speech recognition ended');
-        setIsRecording(false);
+      silenceTimerRef.current = silenceCheck as any;
 
-        // Clear silence timer
-        if (silenceTimerRef.current) {
-          clearTimeout(silenceTimerRef.current);
-        }
-
-        // Auto-submit only in voice mode, not in dictate mode
-        if (mode === 'voice') {
-          setTimeout(() => {
-            setInput((currentInput) => {
-              const textToSend = currentInput.trim();
-              if (textToSend) {
-                console.log('Auto-submitting:', textToSend);
-                // Trigger the send
-                handleSend({ preventDefault: () => {} } as any);
-              }
-              return currentInput;
-            });
-          }, 300);
-        }
-
-        setRecordingMode(null);
-      };
-
-      mediaRecorderRef.current = recognition;
-      recognition.start();
     } catch (error) {
-      console.error('Speech recognition error:', error);
-      alert('Could not start speech recognition');
+      console.error('Recording error:', error);
+      alert('Could not access microphone');
+      setIsRecording(false);
+      setRecordingMode(null);
     }
   };
 
@@ -386,16 +325,11 @@ export default function ChatPage() {
     if (silenceTimerRef.current) {
       clearTimeout(silenceTimerRef.current);
     }
-    if (mediaRecorderRef.current) {
-      try {
-        (mediaRecorderRef.current as any).abort();
-        console.log('Speech recognition stopped');
-      } catch (error) {
-        console.error('Error stopping recognition:', error);
-      }
-      setIsRecording(false);
-      setDetectedLanguage('');
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
     }
+    setIsRecording(false);
+    setRecordingMode(null);
   };
 
 
