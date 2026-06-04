@@ -425,9 +425,7 @@ export default function ChatPage() {
                 {detectedLanguage ? `Speaking: ${detectedLanguage}` : 'Detecting language...'}
               </p>
               <p className="text-slate-400 text-sm mt-4">
-                {recordingMode === 'dictate'
-                  ? 'Speak your message (will show as text)'
-                  : 'Speak to chat (auto-sends)'}
+                Speak to chat (auto-sends)
               </p>
               <p className="text-slate-400 text-sm">Click circle or ✕ to stop</p>
             </div>
