@@ -635,7 +635,7 @@ export default function ChatPage() {
 
 
   // Full-screen voice chat UI when in voice mode
-  if (recordingMode === 'voice' || (voiceChatState !== 'idle' && recordingMode === 'voice')) {
+  if (recordingMode === 'voice') {
     return (
       <div className="voice-mode-container">
         <style>{styles}</style>
